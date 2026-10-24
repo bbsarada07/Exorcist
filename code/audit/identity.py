@@ -110,6 +110,20 @@ class IdentityAgent:
     def owners_of(self, key: tuple) -> set[str]:
         return self.owners.get(key, set())
 
+    def belongs_to(self, key: tuple, user_id: str, at: datetime) -> bool:
+        """Does an observation of `key` at time `at` identify `user_id`?
+
+        A key with a single owner always does (stale copies of an old address are still that person's).
+        A key that several people held over time (reused address) identifies whoever held it at `at`.
+        """
+        owners = self.owners.get(key, set())
+        if user_id not in owners:
+            return False
+        if len(owners) == 1:
+            return True
+        live = {o for o in owners if any((i.kind, i.value) == key and i.valid_at(at) for i in self.subjects[o].identifiers)}
+        return user_id in live if live else False
+
 
 def _edit_distance(a: str, b: str, cap: int = 4) -> int:
     if abs(len(a) - len(b)) > cap:

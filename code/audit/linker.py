@@ -132,7 +132,8 @@ class LinkerAgent:
         for k in keys:
             for rid in self.ev.by_key.get(k, ()):
                 for f in self.ev.by_resource[rid]:
-                    if k in f.keys and self._in_scope(case, f.observed_at):
+                    if k in f.keys and self._in_scope(case, f.observed_at) and \
+                            self.id.belongs_to(k, case.user_id, f.observed_at):
                         hits[rid].append(f)
         contested = {}
         for rid, fs in hits.items():
