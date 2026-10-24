@@ -43,9 +43,9 @@ const startExorcism = async (page) => {
 const scenes = {
   async "01-hero-dark"(page) { await page.goto(URL); await wait(1800); await page.mouse.move(520, 330, { steps: 12 }); await wait(900); },
   async "02-hero-summoned"(page) { await page.goto(URL); await wait(1200); await page.mouse.move(980, 520, { steps: 8 }); await page.mouse.click(700, 400); await wait(5200); },
-  async "03-grid-default"(page) { await toGrid(page); await page.locator("[data-stone]").nth(140).hover(); await wait(700); },
-  async "04-grid-search-case_483"(page) { await toGrid(page); await page.getByLabel("Search cases").fill("case_483"); await wait(1400); },
-  async "05-grid-filter-haunted"(page) { await toGrid(page); await page.getByRole("button", { name: /^haunted/i }).first().click(); await wait(1200); },
+  async "03-grid-default"(page) { await toGrid(page); await page.locator("[data-stone]").nth(140).hover({ force: true }); await wait(900); },
+  async "04-grid-search-case_483"(page) { await toGrid(page); await page.getByLabel("Search cases").fill("case_483"); await wait(2800); },
+  async "05-grid-filter-haunted"(page) { await toGrid(page); await page.getByRole("button", { name: /^haunted/i }).first().click(); await wait(2600); },
   async "06-case-detail"(page) { await page.goto(URL + "#/case/case_483"); await wait(2600); },
   async "07-exorcism-start"(page) { await startExorcism(page); await wait(700); },
   async "08-exorcism-mid"(page) { await startExorcism(page); await wait(3500); },
@@ -61,7 +61,7 @@ const scenes = {
 try {
   await ready();
   mkdirSync(OUT, { recursive: true });
-  const browser = await chromium.launch({ executablePath: exe, headless: true, args: ["--force-color-profile=srgb", "--ignore-gpu-blocklist", "--use-angle=swiftshader"] });
+  const browser = await chromium.launch({ executablePath: exe, headless: true, args: ["--force-color-profile=srgb", ...(process.env.SOFTWARE_GL ? ["--use-angle=swiftshader"] : ["--enable-gpu"]), "--ignore-gpu-blocklist"] });
   const want = process.argv.slice(2);
   for (const [name, run] of Object.entries(scenes)) {
     if (want.length && !want.some((w) => name.includes(w))) continue;

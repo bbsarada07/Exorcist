@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { prefersReducedMotion } from "./perf";
 import type { Status } from "./data";
+import type { PerfMode } from "../effects/fluid";
 
 export type View = "grid" | "ledger";
 
@@ -14,6 +15,10 @@ interface UIState {
   cursor: number;              // keyboard focus index in the filtered graveyard
   palette: boolean;
   originRect: { x: number; y: number; w: number; h: number } | null; // tombstone rect for the shared-element zoom
+  perf: PerfMode;              // fluid/particle quality: auto (adaptive) | high | low
+  fluidKind: "webgl" | "css";  // which background is actually running
+  setPerf: (p: PerfMode) => void;
+  setFluidKind: (k: "webgl" | "css") => void;
   setLite: (v: boolean) => void;
   open: (id: string | null, origin?: DOMRect | null) => void;
   setView: (v: View) => void;
@@ -33,6 +38,10 @@ const storedLite = (() => {
   }
 })();
 
+const storedPerf = (() => {
+  try { const v = localStorage.getItem("exorcist.perf"); return v === "high" || v === "low" ? v : "auto"; } catch { return "auto"; }
+})() as PerfMode;
+
 const caseFromHash = () => {
   const m = location.hash.match(/^#\/case\/([\w-]+)$/);
   return m ? m[1] : null;
@@ -48,6 +57,10 @@ export const useUI = create<UIState>((set) => ({
   cursor: 0,
   palette: false,
   originRect: null,
+  perf: storedPerf,
+  fluidKind: "css",
+  setPerf: (perf) => { try { localStorage.setItem("exorcist.perf", perf); } catch { /* storage unavailable */ } set({ perf }); },
+  setFluidKind: (fluidKind) => set({ fluidKind }),
   setLite: (lite) => {
     try { localStorage.setItem("exorcist.lite", lite ? "1" : "0"); } catch { /* storage unavailable */ }
     set({ lite });

@@ -12,6 +12,7 @@ export interface CaseSummary {
   c: number | null;     // confidence
   v: string | null;     // lie_report verdict
   sys: string[];        // systems touched by the steps
+  ev: string[];         // evidence ids cited by the steps (search)
 }
 
 export interface Summary {
@@ -42,8 +43,7 @@ export interface CaseDetail {
   email: string | null;
   user_id: string | null;
   identity_match: string;
-  intent: string;
-  request_text: string;
+  intent: string;       // engine intent verdict (the raw request text is not exported)
   confidence: number | null;
   confidence_reasons: string[];
   review: { reasons: string[]; links: { resource_id: string; kind: string; margin: number | null }[] } | null;

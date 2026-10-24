@@ -6,6 +6,7 @@ import { OP_VERB, REPORTED_LABEL, STATUS_LABEL, STATUS_TONE, fmtDate, modeLabel,
 import { Chip, ConfidenceMeter, ReportedChip, ReviewBadge, StatusChip } from "../components/Chips";
 import { useInView } from "../components/Motion";
 import { Exorcism } from "./Exorcism";
+import { setFluidScene } from "../lib/fluid";
 
 const PHASES: Phase[] = ["FINDING", "REMEDIATION", "VERIFICATION"];
 const STATE_TONE: Record<string, "haunted" | "proven" | "flow" | "bone"> = {
@@ -23,6 +24,13 @@ export function CaseDetailView() {
     loadDetails().then((all) => (all[caseId] ? setD(all[caseId]) : setMissing(true)));
   }, [caseId]);
 
+  // the fluid follows the case: ember when INCOMPLETE, green when COMPLETE, violet currents per active data flow
+  useEffect(() => {
+    if (!d) return;
+    const flows = d.steps.filter((s) => s[1] === "DISABLE_DATA_FLOW").length;
+    setFluidScene(`case:${d.status}`, d.status === "INCOMPLETE" ? 1 : d.status === "COMPLETE" ? 0 : 0.5, Math.min(1, flows / 2));
+  }, [d]);
+
   useEffect(() => {
     if (!caseId) return;
     const prev = document.body.style.overflow;
@@ -34,14 +42,27 @@ export function CaseDetailView() {
 
   if (!caseId) return null;
   return (
-    <motion.div data-lenis-prevent className="scrollbar-thin fixed inset-0 z-40 overflow-y-auto bg-ink"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: lite ? 0 : 0.35 }}>
+    <motion.div data-lenis-prevent className="scrollbar-thin fixed inset-0 z-40 overflow-y-auto bg-ink/45" data-case-view={caseId}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: lite ? 0 : 0.45 }}>
+      {!lite && originRect && <InkBloom origin={originRect} />}
       <div className="mx-auto max-w-[1400px] px-5 pb-32 pt-24 md:px-10">
-        <button onClick={() => open(null)} className="mono text-xs uppercase tracking-[0.25em] text-muted hover:text-bone">← graveyard <span className="kbd ml-1">esc</span></button>
+        <button onClick={() => open(null)} className="panel micro px-3 py-1.5 !text-bone hover:!text-proven">← graveyard <span className="kbd ml-1">esc</span></button>
         {missing && <p className="mt-10 text-muted">Unknown case <span className="mono">{caseId}</span>.</p>}
         {d && <Body d={d} origin={originRect} lite={lite} />}
       </div>
     </motion.div>
+  );
+}
+
+/** Ink-bloom transition: a soft disc grows out of the clicked tombstone and dissolves (transform/opacity only). */
+function InkBloom({ origin }: { origin: { x: number; y: number; w: number; h: number } }) {
+  const cx = origin.x + origin.w / 2, cy = origin.y + origin.h / 2;
+  const r = Math.hypot(Math.max(cx, innerWidth - cx), Math.max(cy, innerHeight - cy));
+  return (
+    <motion.div aria-hidden className="pointer-events-none fixed z-50 rounded-full"
+      style={{ left: cx - r, top: cy - r, width: r * 2, height: r * 2,
+               background: "radial-gradient(circle, rgba(237,233,224,.16), rgba(124,255,178,.08) 45%, transparent 70%)" }}
+      initial={{ scale: 0.02, opacity: 1 }} animate={{ scale: 1, opacity: 0 }} transition={{ duration: 0.9, ease: [0.2, 0.8, 0.2, 1] }} />
   );
 }
 
@@ -68,10 +89,10 @@ function Body({ d, origin, lite }: { d: Detail; origin: { x: number; y: number; 
   const [sel, setSel] = useState<number | null>(null);
   return (
     <>
-      <header className="mt-8 flex flex-wrap items-end gap-8">
+      <header className="panel-strong mt-6 flex flex-wrap items-end gap-8 p-6 md:p-8">
         <FlyingStone d={d} origin={origin} lite={lite} />
         <div className="min-w-0 flex-1">
-          <p className="mono text-[11px] uppercase tracking-[0.3em] text-muted">case file</p>
+          <p className="mono text-xs uppercase tracking-[0.3em] text-muted">case file</p>
           <h1 className="display mt-1 text-7xl text-bone md:text-9xl">{d.id.replace("_", " ")}</h1>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <StatusChip status={d.status} />
@@ -85,11 +106,11 @@ function Body({ d, origin, lite }: { d: Detail; origin: { x: number; y: number; 
 
       <section className="mt-10 grid gap-4 md:grid-cols-3">
         <div className="panel p-5 md:col-span-2">
-          <p className="mono text-[10px] uppercase tracking-[0.25em] text-muted">the request</p>
-          <blockquote className="display mt-3 text-2xl italic leading-snug text-bone md:text-3xl">“{d.request_text}”</blockquote>
-          <p className="mono mt-3 text-[11px] text-muted">intent · {d.intent}</p>
+          <p className="micro">the request · intent verdict</p>
+          <p className="display mt-3 text-3xl italic leading-snug text-bone md:text-4xl">{d.intent.charAt(0).toUpperCase() + d.intent.slice(1)}.</p>
+          <p className="mono mt-3 text-xs text-muted">The customer's own words stay in the dataset: the UI export carries only the engine's verdict (privacy).</p>
         </div>
-        <dl className="panel mono grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-5 text-[12px]">
+        <dl className="panel mono grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 p-5 text-xs">
           <dt className="text-muted">subject</dt><dd className="text-bone">{d.user_id ?? "—"}</dd>
           <dt className="text-muted">email</dt><dd className="text-bone">{d.email ?? "—"} <span className="text-muted">(masked)</span></dd>
           <dt className="text-muted">matched</dt><dd className="text-bone">{d.identity_match} identifier</dd>
@@ -101,10 +122,10 @@ function Body({ d, origin, lite }: { d: Detail; origin: { x: number; y: number; 
 
       {d.review && (
         <div className="panel mt-4 border-flow/40 p-4 text-sm">
-          <p className="mono text-[10px] uppercase tracking-[0.25em] text-flow">in the review queue — why</p>
+          <p className="mono text-xs uppercase tracking-[0.25em] text-flow">in the review queue — why</p>
           <ul className="mt-2 space-y-1 text-bone">
             {d.review.reasons.map((r) => <li key={r}>· {r}</li>)}
-            {d.review.links.map((l) => <li key={l.resource_id} className="mono text-[12px] text-muted">guessed link: {l.resource_id} ({l.kind.replace(/_/g, " ")}, margin {l.margin ?? "—"})</li>)}
+            {d.review.links.map((l) => <li key={l.resource_id} className="mono text-xs text-muted">guessed link: {l.resource_id} ({l.kind.replace(/_/g, " ")}, margin {l.margin ?? "—"})</li>)}
           </ul>
         </div>
       )}
@@ -126,7 +147,7 @@ function Body({ d, origin, lite }: { d: Detail; origin: { x: number; y: number; 
         <section className="mt-10 grid gap-4 md:grid-cols-2">
           {d.conflicts.length > 0 && (
             <div className="panel p-5">
-              <p className="mono text-[10px] uppercase tracking-[0.25em] text-muted">conflicting sources · conflicts.jsonl</p>
+              <p className="mono text-xs uppercase tracking-[0.25em] text-muted">conflicting sources · conflicts.jsonl</p>
               <ul className="mt-3 space-y-2 text-sm">
                 {d.conflicts.slice(0, 6).map((c, i) => (
                   <li key={i}><span className="mono text-bone">{c.r}</span> <span className="text-muted">— {c.type.replace(/_/g, " ")}; trusted {c.trusted}. {c.why}</span></li>
@@ -136,7 +157,7 @@ function Body({ d, origin, lite }: { d: Detail; origin: { x: number; y: number; 
           )}
           {d.lineage.length > 0 && (
             <div className="panel p-5">
-              <p className="mono text-[10px] uppercase tracking-[0.25em] text-muted">recreation paths · lineage.json</p>
+              <p className="mono text-xs uppercase tracking-[0.25em] text-muted">recreation paths · lineage.json</p>
               <ul className="mono mt-3 space-y-2 text-[12px]">
                 {d.lineage.map((e, i) => (
                   <li key={i} className="text-bone">{e.from} <span className="text-flow">—{e.kind.replace(/_/g, " ").toLowerCase()}→</span> {e.to} <span className="text-muted">{e.via}{e.at ? ` · ${e.at.slice(0, 10)}` : ""}</span></li>
@@ -159,12 +180,12 @@ function RealityRift({ d }: { d: Detail }) {
   return (
     <section id="reality-rift" ref={ref} className="relative mt-12 grid overflow-hidden rounded-panel border border-line md:grid-cols-2">
       <div className="scanlines relative bg-[#0b0b12] p-8 md:p-10">
-        <p className="mono text-[10px] uppercase tracking-[0.3em] text-muted">reported · the legacy workflow said</p>
+        <p className="mono text-xs uppercase tracking-[0.3em] text-muted">reported · the legacy workflow said</p>
         <p className="display glitch mt-6 text-6xl text-bone md:text-7xl" data-text={claimed}>{claimed}</p>
-        <p className="mono mt-6 text-[11px] text-muted">reported_status = {d.reported} · at {fmtDate(d.reported_at)}</p>
+        <p className="mono mt-6 text-xs text-muted">reported_status = {d.reported} · at {fmtDate(d.reported_at)}</p>
       </div>
       <div className="relative bg-panel p-8 md:p-10">
-        <p className="mono text-[10px] uppercase tracking-[0.3em] text-muted">reality · reconstructed from evidence at audit_at</p>
+        <p className="mono text-xs uppercase tracking-[0.3em] text-muted">reality · reconstructed from evidence at audit_at</p>
         <p className={`display mt-6 text-6xl md:text-7xl tone-${tone}`}>{truth}</p>
         <p className="mt-4 text-sm text-bone">{verdictLabel(d.verdict)}</p>
         {d.failure_modes.length > 0 && (
@@ -172,7 +193,7 @@ function RealityRift({ d }: { d: Detail }) {
             {d.failure_modes.map((m) => <Chip key={m} tone={m.includes("flow") ? "flow" : "haunted"}>{modeLabel(m)}</Chip>)}
           </div>
         )}
-        <p className="mono mt-6 text-[11px] text-muted">source · lie_report.json{d.verdict ? ` verdict "${d.verdict}"` : ""}</p>
+        <p className="mono mt-6 text-xs text-muted">source · lie_report.json{d.verdict ? ` verdict "${d.verdict}"` : ""}</p>
         {/* reveal curtain: transform-only wipe */}
         <motion.div aria-hidden className="absolute inset-0 origin-right bg-ink"
           initial={{ scaleX: lite ? 0 : 1 }} animate={{ scaleX: seen || lite ? 0 : 1 }} transition={{ duration: 1.1, ease: [0.7, 0, 0.2, 1], delay: 0.25 }} />
@@ -187,12 +208,12 @@ function StepLine({ s, i, active, onClick }: { s: StepRow; i: number; active: bo
   return (
     <button onClick={onClick} aria-pressed={active}
       className={`grid w-full grid-cols-[2rem_1fr_auto] items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${active ? "bg-white/[0.07]" : "hover:bg-white/[0.035]"}`}>
-      <span className="mono pt-0.5 text-[11px] text-muted">{String(i + 1).padStart(2, "0")}</span>
+      <span className="mono pt-0.5 text-xs text-muted">{String(i + 1).padStart(2, "0")}</span>
       <span className="min-w-0">
         <span className="block text-sm text-bone">{OP_VERB[op] ?? op}</span>
-        <span className="mono block truncate text-[11px] text-muted">{op}</span>
+        <span className="mono block truncate text-xs text-muted">{op}</span>
         <span className="mono block truncate text-[12px] text-bone/90">{system} / {resource}</span>
-        <span className="mono block text-[11px] text-muted">evidence · {ev || (phase === "FINDING" ? "—" : "future work (\"\")")}</span>
+        <span className="mono block text-xs text-muted">evidence · {ev || (phase === "FINDING" ? "—" : "future work (\"\")")}</span>
       </span>
       <span className={`chip tone-${STATE_TONE[state] ?? "bone"}`}>{state}</span>
     </button>
@@ -205,21 +226,21 @@ function Runbook({ d, sel, setSel }: { d: Detail; sel: number | null; setSel: (i
     <section id="runbook" className="mt-12">
       <div className="flex items-end justify-between">
         <h2 className="display text-5xl text-bone">The runbook</h2>
-        <p className="mono text-[11px] text-muted">exact rows from output.csv · click a step for its decision trace</p>
+        <p className="mono text-xs text-muted">exact rows from output.csv · click a step for its decision trace</p>
       </div>
       <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_1fr_1fr_minmax(0,22rem)]">
         {PHASES.map((p) => {
           const rows = d.steps.map((s, i) => [s, i] as const).filter(([s]) => s[0] === p);
           return (
             <div key={p} className="panel p-3">
-              <p className="mono px-3 pb-2 pt-1 text-[10px] uppercase tracking-[0.25em] text-muted">{p.toLowerCase()} · {rows.length}</p>
+              <p className="mono px-3 pb-2 pt-1 text-xs uppercase tracking-[0.25em] text-muted">{p.toLowerCase()} · {rows.length}</p>
               {rows.length === 0 && <p className="px-3 pb-3 text-xs text-muted">none</p>}
               {rows.map(([s, i]) => <StepLine key={i} s={s} i={i} active={sel === i} onClick={() => setSel(sel === i ? null : i)} />)}
             </div>
           );
         })}
         <aside className="panel p-5 lg:sticky lg:top-24 lg:self-start" aria-live="polite">
-          <p className="mono text-[10px] uppercase tracking-[0.25em] text-muted">why this step exists · decision_trace.jsonl</p>
+          <p className="mono text-xs uppercase tracking-[0.25em] text-muted">why this step exists · decision_trace.jsonl</p>
           {sel === null || !why ? (
             <p className="mt-4 text-sm text-muted">Select a step to see the rule, the policy category and the evidence chain behind it.</p>
           ) : (
@@ -248,12 +269,12 @@ function ProofView({ d }: { d: Detail }) {
     <section id="proof" ref={ref} className="panel glow-proven relative mt-12 overflow-hidden p-8 md:p-10">
       <div className="flex flex-wrap items-start justify-between gap-6">
         <div>
-          <p className="mono text-[10px] uppercase tracking-[0.3em] text-proven">proof view · nothing to fix</p>
+          <p className="mono text-xs uppercase tracking-[0.3em] text-proven">proof view · nothing to fix</p>
           <h2 className="display mt-2 text-5xl text-bone md:text-6xl">Proven <span className="italic">clean</span>.</h2>
           <p className="mt-3 max-w-xl text-sm text-muted">Every check below cites evidence captured before the audit cut. There is no remediation to perform, so there is no exorcism, only proof.</p>
         </div>
         <div className="grid h-28 w-28 place-items-center rounded-full border-2 border-proven text-center text-proven shadow-[0_0_40px_-6px_rgba(124,255,178,.6)]">
-          <span className="mono text-[10px] uppercase leading-tight tracking-[0.2em]">verified<br />{ver.length} of {ver.length}</span>
+          <span className="mono text-xs uppercase leading-tight tracking-[0.2em]">verified<br />{ver.length} of {ver.length}</span>
         </div>
       </div>
       <ol className="mt-8 space-y-2">
@@ -264,7 +285,7 @@ function ProofView({ d }: { d: Detail }) {
             <span className="text-proven" aria-label="passed">✓</span>
             <span className="min-w-0">
               <span className="block text-sm text-bone">{OP_VERB[s[1]]} · <span className="mono text-[12px]">{s[2]} / {s[3]}</span></span>
-              <span className="mono block text-[11px] text-muted">{d.why[i]?.[3]} · rule {d.why[i]?.[0]}</span>
+              <span className="mono block text-xs text-muted">{d.why[i]?.[3]} · rule {d.why[i]?.[0]}</span>
             </span>
             <span className="mono text-[12px] text-proven">{s[5]}</span>
           </motion.li>

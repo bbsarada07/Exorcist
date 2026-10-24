@@ -83,7 +83,7 @@ export function CommandPalette({ summary }: { summary: Summary | null }) {
                 <li key={`${it.kind}-${it.label}`} role="option" aria-selected={i === sel}
                   onMouseEnter={() => setSel(i)} onClick={() => choose(it)}
                   className={`flex cursor-pointer items-center gap-3 px-4 py-2 ${i === sel ? "bg-white/[0.06]" : ""}`}>
-                  <span className={`mono w-16 text-[10px] uppercase tracking-widest ${it.kind === "case" ? "text-bone" : it.kind === "system" ? "text-flow" : "text-proven"}`}>{it.kind}</span>
+                  <span className={`mono w-16 text-xs uppercase tracking-widest ${it.kind === "case" ? "text-bone" : it.kind === "system" ? "text-flow" : "text-proven"}`}>{it.kind}</span>
                   <span className="mono text-sm text-bone">{it.label}</span>
                   <span className="ml-auto truncate text-xs text-muted">{it.hint}</span>
                 </li>

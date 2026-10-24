@@ -26,7 +26,7 @@ export function ConfidenceMeter({ value }: { value: number | null }) {
   const pct = Math.round(value * 100);
   return (
     <div className="flex items-center gap-2" aria-label={`confidence ${pct}%`}>
-      <span className="mono text-[11px] uppercase tracking-widest text-muted">confidence</span>
+      <span className="mono text-xs uppercase tracking-widest text-muted">confidence</span>
       <div className="relative h-1.5 w-28 overflow-hidden rounded-full bg-line">
         <div className="absolute inset-y-0 left-0 origin-left rounded-full bg-bone" style={{ width: "100%", transform: `scaleX(${value})` }} />
       </div>

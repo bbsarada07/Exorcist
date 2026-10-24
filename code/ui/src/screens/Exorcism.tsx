@@ -4,6 +4,7 @@ import type { CaseDetail, StepRow } from "../lib/data";
 import { useUI } from "../lib/store";
 import { OP_VERB } from "../lib/labels";
 import { DustLayer } from "../effects/dust";
+import { fluid, purgeOrigin, setFluidScene } from "../lib/fluid";
 
 interface Target {
   rid: string;
@@ -97,7 +98,12 @@ export function Exorcism({ d }: { d: CaseDetail }) {
   const build = useCallback(() => {
     const st = stage.current!;
     const q = (sel: string) => st.querySelectorAll(sel);
-    const t = gsap.timeline({ paused: true, onComplete: () => { setPhase("done"); setAnnounce("Exorcism complete: every verification passes in the simulated end state."); } });
+    const violet = Math.min(1, targets.filter((x) => x.op === "DISABLE_DATA_FLOW").length / 2);
+    const t = gsap.timeline({ paused: true, onComplete: () => {
+      fluid.purge.v = 1;
+      setFluidScene("case:EXORCISED", 0, 0);          // calm green flow once every check passes
+      setPhase("done"); setAnnounce("Exorcism complete: every verification passes in the simulated end state.");
+    } });
     t.timeScale(lite ? 2.6 : 1);
     t.to(q("[data-shield]"), { opacity: 1, duration: 0.4 }, 0);
     let at = 0.35;
@@ -143,6 +149,8 @@ export function Exorcism({ d }: { d: CaseDetail }) {
         }) }, at + 0.2);
         swap();
       }
+      // each banished spirit drives a little ember out of the fluid
+      t.to(fluid.purge, { v: ((targets.indexOf(x) + 1) / targets.length) * 0.3, duration: 0.6, ease: "sine.out" }, ">-0.3");
       at = t.duration() + 0.15;
     }
     t.call(() => setAnnounce("Verification checks"), [], at);
@@ -152,6 +160,9 @@ export function Exorcism({ d }: { d: CaseDetail }) {
     t.fromTo(q("[data-final]"), { scale: 3.2, opacity: 0, rotation: -14 }, { scale: 1, opacity: 1, rotation: -6, duration: 0.32, ease: "power4.in" }, end + 0.1);
     if (!lite) t.to(st, { keyframes: { x: [0, -7, 6, -4, 2, 0], y: [0, 4, -3, 2, -1, 0] }, duration: 0.38 }, ">");
     t.fromTo(q("[data-pulse]"), { scale: 0.4, opacity: 0.75 }, { scale: 2.4, opacity: 0, duration: 1.2, ease: "power2.out" }, "<");
+    // THE PURGE: green floods out from the seal as a wave, ember is pushed to the edges and fades
+    t.to(fluid.purge, { v: 1, duration: 2.6, ease: "power2.inOut" }, "<");
+    t.call(() => setFluidScene("case:EXORCISED", 0, violet * 0.2), [], "<+=1.2");
     return t;
   }, [targets, lite]);
 
@@ -165,6 +176,12 @@ export function Exorcism({ d }: { d: CaseDetail }) {
     st.querySelectorAll<HTMLElement>("[data-val]").forEach((v) => (v.textContent = v.dataset.val ?? ""));
     dust.current?.resize();
     measure();
+    // reset the fluid: ember again, purge origin = the seal's position on screen
+    gsap.killTweensOf(fluid.purge);
+    fluid.purge.v = 0;
+    setFluidScene("case:INCOMPLETE", 1, Math.min(1, targets.filter((x) => x.op === "DISABLE_DATA_FLOW").length / 2));
+    const seal = st.querySelector("[data-final]")?.getBoundingClientRect();
+    if (seal) purgeOrigin(seal.left + seal.width / 2, seal.top + seal.height / 2);
     tl.current = build();
     setPhase("running");
     tl.current.play(0);
@@ -179,17 +196,17 @@ export function Exorcism({ d }: { d: CaseDetail }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [phase]);
-  useEffect(() => () => { tl.current?.kill(); }, []);
+  useEffect(() => () => { tl.current?.kill(); gsap.killTweensOf(fluid.purge); fluid.purge.v = 0; }, []);
 
   return (
-    <section id="exorcism" className="mt-12">
+    <section id="exorcism" className="mt-12" data-phase={phase}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="mono text-[10px] uppercase tracking-[0.3em] text-haunted">the exorcism · driven by this case's remediation steps</p>
+          <p className="micro !text-haunted">03 · the exorcism · driven by this case's remediation steps</p>
           <h2 className="display mt-2 text-5xl text-bone md:text-6xl">{targets.length} spirit{targets.length === 1 ? "" : "s"} to banish</h2>
         </div>
         <div className="flex items-center gap-3">
-          {phase === "running" && <span className="mono text-[11px] text-muted"><span className="kbd">space</span> skip</span>}
+          {phase === "running" && <span className="mono text-xs text-muted"><span className="kbd">space</span> skip</span>}
           <button onClick={run} className="group relative overflow-hidden rounded-full border border-haunted px-6 py-3 text-bone glow-haunted transition-transform hover:scale-[1.02]">
             <span className="mono text-xs uppercase tracking-[0.25em]">{phase === "idle" ? "Perform the Exorcism" : "Replay the exorcism"}</span>
           </button>
@@ -223,9 +240,9 @@ export function Exorcism({ d }: { d: CaseDetail }) {
           </Column>
           <Column title="retained by policy · untouched" empty="no retained record">
             {retained.map((r) => (
-              <div key={r.rid} className="relative rounded-xl border border-proven/40 bg-ink/50 p-4">
+              <div key={r.rid} data-retained={r.rid} className="relative rounded-xl border border-proven/50 bg-ink/70 p-4">
                 <div data-shield aria-hidden className="pointer-events-none absolute -inset-1 rounded-xl border border-proven/50 shadow-[0_0_28px_-4px_rgba(124,255,178,.55)]" style={{ opacity: 0 }} />
-                <p className="mono text-[11px] text-muted">{r.sys}</p>
+                <p className="mono text-xs text-muted">{r.sys}</p>
                 <p className="mono text-sm text-bone">{r.rid}</p>
                 <p className="mt-2 flex items-center gap-2 text-xs text-proven"><span aria-hidden>⛨</span> shielded · VERIFY_RECORD_PRESENT</p>
               </div>
@@ -234,14 +251,14 @@ export function Exorcism({ d }: { d: CaseDetail }) {
         </div>
 
         <div className="relative mt-8 border-t border-line pt-5">
-          <p className="mono text-[10px] uppercase tracking-[0.25em] text-muted">checks that must pass afterwards · {checks.length}</p>
+          <p className="mono text-xs uppercase tracking-[0.25em] text-muted">checks that must pass afterwards · {checks.length}</p>
           <ol className="mt-3 grid gap-2 md:grid-cols-2">
             {checks.map(([s, i]) => (
               <li key={i} data-check
                 className="flex items-center gap-3 rounded-lg border border-line bg-ink/40 px-3 py-2 opacity-40">
-                <span data-tick className="grid h-5 w-5 place-items-center rounded-full border border-proven text-[11px] text-proven" aria-hidden>✓</span>
+                <span data-tick className="grid h-5 w-5 place-items-center rounded-full border border-proven text-xs text-proven" aria-hidden>✓</span>
                 <span className="text-sm text-bone">{OP_VERB[s[1]]}</span>
-                <span className="mono ml-auto truncate text-[11px] text-muted">{s[3]}</span>
+                <span className="mono ml-auto truncate text-xs text-muted">{s[3]}</span>
               </li>
             ))}
           </ol>
@@ -253,12 +270,12 @@ export function Exorcism({ d }: { d: CaseDetail }) {
           <div data-final style={{ opacity: 0 }} className="grid h-44 w-44 place-items-center rounded-full border-[3px] border-proven bg-ink/80 text-center text-proven shadow-[0_0_60px_-4px_rgba(124,255,178,.7)]">
             <span className="flex flex-col items-center gap-2">
               <span className="display text-4xl italic leading-none">Exorcised</span>
-              <span className="mono text-[8px] uppercase tracking-[0.22em]">plan proven by<br />simulation</span>
+              <span className="mono text-xs uppercase tracking-[0.22em]">plan proven by<br />simulation</span>
             </span>
           </div>
         </div>
       </div>
-      <p className="mono mt-3 text-[11px] text-muted">
+      <p className="mono mt-3 text-xs text-muted">
         A visualisation of the plan in output.csv applied to the reconstructed state. Nothing in any system is changed.
       </p>
     </section>
@@ -269,7 +286,7 @@ function Column({ title, empty, children, col }: { title: string; empty: string;
   const has = Array.isArray(children) ? children.length > 0 : !!children;
   return (
     <div data-col={col}>
-      <p className="mono mb-3 text-[10px] uppercase tracking-[0.25em] text-muted">{title}</p>
+      <p className="mono mb-3 text-xs uppercase tracking-[0.25em] text-muted">{title}</p>
       <div className="space-y-3">{has ? children : <p className="text-xs text-muted">{empty}</p>}</div>
     </div>
   );
@@ -281,7 +298,7 @@ function TargetCard({ x }: { x: Target }) {
   return (
     <div data-x={x.rid} className={`relative rounded-xl border ${tone} bg-ink/60 p-4`}>
       <div data-heat aria-hidden className={`pointer-events-none absolute inset-0 rounded-xl ${flow ? "shadow-[0_0_30px_-8px_rgba(155,141,255,.7)]" : "shadow-[0_0_30px_-8px_rgba(255,107,71,.7)]"}`} />
-      <p className="mono truncate text-[11px] text-muted">{x.sys}{x.cat ? ` · ${x.cat}` : ""}</p>
+      <p className="mono truncate text-xs text-muted">{x.sys}{x.cat ? ` · ${x.cat}` : ""}</p>
       <div className="mt-0.5 flex items-center justify-between gap-2">
         <p className="mono min-w-0 truncate text-sm text-bone">{x.rid}</p>
         <div className="relative h-6 shrink-0">
@@ -293,19 +310,19 @@ function TargetCard({ x }: { x: Target }) {
       <div data-body className="mt-3 space-y-1.5">
         {(x.op === "REDACT_RECORD" || x.op === "ANONYMIZE_RECORD") && (x.fields.length ? x.fields : ["identifiers"]).map((f) => (
           <div key={f} className="relative flex items-center justify-between overflow-hidden rounded bg-white/[0.04] px-2 py-1">
-            <span className="mono text-[11px] text-muted">{f}</span>
-            <span className="mono text-[11px] text-bone" data-val="••••••••">••••••••</span>
+            <span className="mono text-xs text-muted">{f}</span>
+            <span className="mono text-xs text-bone" data-val="••••••••">••••••••</span>
             {x.op === "REDACT_RECORD" && <span data-bar aria-hidden className="absolute inset-y-0 left-0 w-full origin-left bg-black" style={{ transform: "scaleX(0)" }} />}
           </div>
         ))}
         {x.op === "DELETE_RECORD" && [0.9, 0.7, 0.8].map((w, i) => <div key={i} className="h-1.5 rounded bg-haunted/40" style={{ width: `${w * 100}%` }} />)}
-        {x.op === "BLOCK_RESTORE" && <p className="mono text-[11px] text-muted">restore path open · archive retained by policy</p>}
-        {flow && <p className="mono text-[11px] text-flow">sync can recreate the subject's data</p>}
+        {x.op === "BLOCK_RESTORE" && <p className="mono text-xs text-muted">restore path open · archive retained by policy</p>}
+        {flow && <p className="mono text-xs text-flow">sync can recreate the subject's data</p>}
       </div>
       {x.op === "BLOCK_RESTORE" && (
         <div data-seal aria-hidden style={{ opacity: 0 }}
-          className="absolute -bottom-4 -right-3 grid h-16 w-16 place-items-center rounded-full bg-[#8f1d1d] text-center shadow-[inset_0_-4px_8px_rgba(0,0,0,.45),0_6px_16px_rgba(0,0,0,.5)]">
-          <span className="mono text-[8px] font-bold uppercase leading-tight tracking-widest text-[#ffd9c9]">sealed<br />no<br />restore</span>
+          className="absolute -bottom-6 -right-4 grid h-[84px] w-[84px] place-items-center rounded-full bg-[#8f1d1d] text-center shadow-[inset_0_-4px_8px_rgba(0,0,0,.45),0_6px_16px_rgba(0,0,0,.5)]">
+          <span className="mono text-xs font-bold uppercase leading-tight tracking-widest text-[#ffd9c9]">sealed<br />no<br />restore</span>
         </div>
       )}
     </div>

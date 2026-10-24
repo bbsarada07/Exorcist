@@ -33,7 +33,7 @@ export class GhostField {
   private io: IntersectionObserver;
 
   constructor(private canvas: HTMLCanvasElement, private opts: GhostFieldOptions) {
-    this.ctx = canvas.getContext("2d", { alpha: false })!;
+    this.ctx = canvas.getContext("2d", { alpha: true })!;   // transparent: the fluid shows through
     this.n = opts.count;
     const mk = () => new Float32Array(this.n);
     this.x = mk(); this.y = mk(); this.vx = mk(); this.vy = mk(); this.tx = mk(); this.ty = mk(); this.seed = mk();
@@ -108,8 +108,11 @@ export class GhostField {
     const s = this.summonT * this.summonT * (3 - 2 * this.summonT);    // smoothstep
     this.sx += (this.mx - this.sx) * 0.18 * k; this.sy += (this.my - this.sy) * 0.18 * k;
     const R = Math.min(260, Math.max(170, w * 0.16));
-    ctx.fillStyle = "rgba(7,7,11,0.34)";
+    // fade the previous frame toward transparency (motion trails without hiding the fluid underneath)
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0,0,0,0.34)";
     ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = "source-over";
 
     // flashlight cone
     if (this.sx > -1000) {
