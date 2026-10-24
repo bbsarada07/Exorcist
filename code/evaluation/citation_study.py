@@ -40,9 +40,9 @@ RULES = {
 }
 
 
-def main():
-    engine = AuditEngine(DATASET_DIR)
-    results = engine.run()
+def study(engine=None, results=None):
+    engine = engine or AuditEngine(DATASET_DIR)
+    results = results or engine.run()
     gold = load_rows(DATASET_DIR / "sample_output.csv")
     scores = {name: 0 for name in RULES}
     total, unreachable, rows = 0, 0, []
@@ -71,6 +71,11 @@ def main():
                 scores[name] += ok
                 hit_any |= ok
             rows.append((cid, s["resource_id"], s["evidence_id"], "ok" if hit_any else "no rule", cand_ids))
+    return scores, total, unreachable, rows
+
+
+def main():
+    scores, total, unreachable, rows = study()
     print(f"cited gold steps: {total} (resource not linked: {unreachable})\n")
     for name, sc in sorted(scores.items(), key=lambda kv: -kv[1]):
         print(f"  {name:34s} {sc}/{total}")

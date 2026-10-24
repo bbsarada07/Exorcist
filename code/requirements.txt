@@ -1,0 +1,4 @@
+numpy>=1.26
+scipy>=1.11
+# optional: only if AUDIT_LLM_PROVIDER=anthropic (never needed for the deterministic run)
+# anthropic>=0.40

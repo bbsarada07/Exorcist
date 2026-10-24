@@ -63,7 +63,7 @@ def parse_document(path: Path, evidence_id: str, cite_at: datetime, aliases: dic
         for alias, rid in aliases.items():
             if alias == rid or alias not in line:
                 continue
-            # an alias that is itself a person key (e.g. "user_17") only names the page when it is the title line
+            # an alias that is itself a person key (a user_<n> reference) only names the page when it is the title line
             if identifier_of(alias) and line.strip() != alias:
                 continue
             add(rid, whole_keys if is_pdf else line_keys, line)

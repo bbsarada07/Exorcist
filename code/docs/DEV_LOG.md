@@ -1,11 +1,33 @@
 # DEV_LOG
 
 ## 2026-10-24 — Phase 0 recon
-* Cloned starter repo; `code/main.py` and `code/evaluation/main.py` are empty stubs.
-* Profiled every CSV and evidence family (SQL via sqlite3, PDFs via pdftotext, PNGs viewed, logs/JSON parsed).
-  Findings in `DATA_NOTES.md`, inferred rules in `CONVENTIONS.md`.
-* Key decisions so far:
-  - Deterministic-first: every sample row is explainable from structured evidence + activity; no LLM needed for verdicts.
-  - Facts carry their own observation time; citations limited to files captured ≤ audit_at.
-  - Linking identifier-free resources needs a global one-to-one assignment over the worker chain, not nearest-time.
-* Known ceiling: 2 sample gold steps reference resources absent from all participant data (case_18, case_20).
+* Cloned starter repo; `code/main.py` and `code/evaluation/main.py` were empty stubs.
+* Profiled every CSV and evidence family; findings in `DATA_NOTES.md`, rules in `CONVENTIONS.md`.
+
+## 2026-10-24 — Phase 1 build (commits in order)
+1. **Parsers → fact table** (3,047 facts / 369 coverage snapshots / 4,011 activities, 5.7 s cold, ~2.5 s warm).
+   Fix: an alias equal to a person key (`user_<n>`) matched a table row in a PDF → only title lines count.
+2. **IdentityAgent**: 550/550 requests resolve (447 current, 103 historical); hashes derived for every email.
+3. **IntentAgent**: first version missed 5 free-form sample follow-ups and read "download your data" as an export
+   request → broadened cues; 540 deletion / 10 non-deletion, all high confidence.
+4. **LinkerAgent**: direct identifier links alone gave 3 FP (all multi-case subjects) / 28 FN on samples → scope
+   window per subject + worker-chain Hungarian assignment.
+   - Account-order tie-break term: label-free test showed ~50% consistency → removed; co-occurrence bonus added
+     (TP 100 → 104, FP 7 → 5).
+   - OCR misread `outiook.com` produced a false conflict → OCR tolerance (edit distance ≤ 2).
+   - Global "identifier anywhere" exclusion blocked `account_3866` (only post-audit identifying snapshot) →
+     per-case foreign-owner check (TP 105).
+5. **Timeline / Policy / Planner / Simulator / Validator / pipeline**: samples status 1.0, step F1 0.979,
+   evidence_id 1.0 on aligned steps.
+6. **Citation study (Decision 2)**: latest-pre-audit-explicit-first reproduces 72/72 reachable citations.
+7. **First full run**: validator rejected 4 rows → name exposure in observations, open restore paths for archives
+   without a blocked flag, case-file omissions count as explicit, contested-sole-evidence fail-safe. Validation passes.
+8. **Custom cases**: 11/12 first run; reused-email contamination → `IdentityAgent.belongs_to` (validity windows) → 12/12.
+9. **Metamorphic**: R1–R4 100% first run; R5 39/40 due to a fixture id colliding with a real decoy `user_id` →
+   disjoint synthetic id space → 40/40. Also: sync/restore jobs that ran now evidence an active path.
+10. **Tests**: hardcode lint caught a dataset id in a comment → fixed; determinism across hash seeds passes.
+
+## Known ceiling
+`account_004` (case_04), `audit_record_6645` (case_18), `audit_record_5569` (case_20) occur in no participant
+file; no id-derivation convention exists (Decision 3). Identifier-free records shared by several cases with the
+same `reported_at` and claim remain coin flips; flagged in `review_queue.json`.

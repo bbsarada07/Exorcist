@@ -46,7 +46,16 @@ re-checked against the evaluation harness.
 13. Normalise emails with `strip().lower()`; hash = sha256 of the normalised email.
 14. A user's identifiers = current email/phone/hash/name + every historical value from the audit log.
     Exact matching only (decoys are near-misses). Names alone never link a record.
-15. Catalog/link rows are claims; if record content shows a different person, the content wins.
+15. Catalog/link rows are claims; if record content shows a different person, the content wins (Decision 4) and
+    the pair goes to `conflicts.jsonl`. **Fail-safe** (`linker.CONTESTED_SOLE_EVIDENCE_FAILSAFE`): when the contested
+    record is the subject's *only* evidence, dropping it would leave a deletion that can be neither verified
+    (COMPLETE needs cited proof) nor reported (INCOMPLETE needs a finding); the auditor refuses to certify
+    completion, keeps the record in scope and flags the case for review. Affects 1 evaluation case.
+15b. A key held by several people over time (reused address) links to whoever held it at the observation time;
+    a key with a single owner always links (stale copies of an old address are still that person's).
+15c. Evidence scope per case: facts observed after the same subject's previous case's `audit_at` and ≤ own `audit_at`.
+15d. A snapshot omission proves absence only when nothing explicit exists or the snapshot is one of the case's own
+    files (it holds the case's other records); otherwise explicit observations win.
 
 ## Intent
 16. Deletion is authorised only if the text asks to delete/erase/close the account or personal data and does
