@@ -35,7 +35,56 @@ ACTION_WINDOW_H = (-0.75, 2.5)   # compliant actions -0.5..-0.1 h, failed/claime
 DUMMY_COST = 4.0
 CONTESTED_SOLE_EVIDENCE_FAILSAFE = True  # see CONVENTIONS.md #15
 OCR_TOLERANCE = 2               # max edit distance treated as an OCR misread (decoys differ by >= 3)
-COOCCURRENCE_BONUS = 0.5        # candidate appears in the same evidence file as the case's linked records
+PHASE_WEIGHT = 1.0               # worker-clock phase agreement (learned, see WorkerClock)
+COOCCURRENCE_BONUS = 0.5       # candidate appears in the same evidence file as the case's linked records
+
+
+@dataclass
+class WorkerClock:
+    """The deletion worker schedules a case's actions on a fixed tick anchored at that case's account delete.
+
+    Learned from unlabeled data only: pairs (account delete, identifier-linked action) of evidence-pinned cases.
+    We pick the period and residues that cover the most pairs above what chance would cover; if no period shows
+    clear structure the clock is disabled and the linker falls back to timing alone.
+    """
+
+    period: int
+    residues: tuple
+    tolerance: int
+    coverage: float
+    pairs: int
+
+    def fits(self, anchor, t) -> bool:
+        r = int(round((t - anchor).total_seconds())) % self.period
+        return any(min((r - x) % self.period, (x - r) % self.period) <= self.tolerance for x in self.residues)
+
+    @staticmethod
+    def learn(pairs, periods=range(10, 121), windows=3, tolerance=1, min_excess=0.5):
+        diffs = [int(round((t - a).total_seconds())) for a, t in pairs]
+        if len(diffs) < 30:
+            return None
+        best = None
+        for p in periods:
+            hist = defaultdict(int)
+            for d in diffs:
+                hist[d % p] += 1
+            chosen, covered = [], set()
+            for _ in range(windows):  # greedily take the residue window covering most uncovered pairs
+                def gain(r):
+                    return sum(1 for i, d in enumerate(diffs) if i not in covered and
+                               min((d - r) % p, (r - d) % p) <= tolerance)
+                r = max(range(p), key=gain)
+                if gain(r) < 0.1 * len(diffs):
+                    break
+                chosen.append(r)
+                covered |= {i for i, d in enumerate(diffs) if min((d - r) % p, (r - d) % p) <= tolerance}
+            coverage = len(covered) / len(diffs)
+            excess = coverage - len(chosen) * (2 * tolerance + 1) / p
+            if best is None or excess > best[0] + 1e-9:
+                best = (excess, p, tuple(sorted(chosen)), coverage)
+        if best is None or best[0] < min_excess:
+            return None
+        return WorkerClock(best[1], best[2], tolerance, round(best[3], 3), len(diffs))
 
 
 @dataclass
@@ -195,10 +244,19 @@ class LinkerAgent:
                                  and self._in_scope(cmap[cid], f.observed_at)}
                            for cid, cl in result.items()}
         worker = [a for a in self.ev.activities if a.is_worker]
-        self._link_accounts(deletion_cases, result, owner_of,
-                            [a for a in worker if a.event_type == "DELETE_RECORD" and a.target_system == "account_service"])
-        self._link_actions(deletion_cases, result, owner_of,
-                           [a for a in worker if a.target_system != "account_service"])
+        accounts = [a for a in worker if a.event_type == "DELETE_RECORD" and a.target_system == "account_service"]
+        actions = [a for a in worker if a.target_system != "account_service"]
+        # worker events on resources that identifiers already tie to a case
+        self.evidence_workers = defaultdict(list)
+        for a in actions:
+            for cid in owner_of.get(a.resource_id, ()):
+                self.evidence_workers[cid].append(a)
+        free_cases, free_events = self._pin_accounts(deletion_cases, result, owner_of, accounts)
+        self.clock = WorkerClock.learn([(result[c].account_event.event_time, w.event_time)
+                                        for c in result if result[c].account_mode == "chain_pinned"
+                                        for w in self.evidence_workers[c]])
+        self._assign_accounts(free_cases, free_events, result)
+        self._link_actions(deletion_cases, result, owner_of, actions)
         return result
 
     def _cooccurs(self, rid: str, c, result) -> bool:
@@ -221,9 +279,13 @@ class LinkerAgent:
             cost += 1.0
         if self._cooccurs(a.resource_id, c, result):
             cost -= COOCCURRENCE_BONUS
+        own = self.evidence_workers.get(c.case_id, [])
+        if own and self.clock:   # the case's identifier-linked actions share the worker clock with its account delete
+            fit = sum(self.clock.fits(a.event_time, w.event_time) for w in own) / len(own)
+            cost += PHASE_WEIGHT * (1 - 2 * fit)
         return cost
 
-    def _link_accounts(self, cases, result, owner_of, events):
+    def _pin_accounts(self, cases, result, owner_of, events):
         by_rid = {a.resource_id: a for a in events}
         taken = set()
         free_cases = []
@@ -234,12 +296,17 @@ class LinkerAgent:
             if pinned:
                 cl.account_event, cl.account_mode = pinned[0], "chain_pinned"
                 taken.add(pinned[0].activity_id)
+                rid = pinned[0].resource_id
+                cl.resources[rid].evidence = tuple(sorted(set(cl.resources[rid].evidence) | {pinned[0].activity_id}))
             elif ev_accounts:
                 cl.account_mode = "evidence"
             else:
                 free_cases.append(c)
         # an account that evidence ties to another subject can never be assigned here
         free_events = [a for a in events if a.activity_id not in taken and not owner_of.get(a.resource_id)]
+        return free_cases, free_events
+
+    def _assign_accounts(self, free_cases, free_events, result):
         if not free_cases:
             return
         n, m = len(free_cases), len(free_events)
@@ -256,11 +323,6 @@ class LinkerAgent:
             cl.account_margin = round((row[0] if row else DUMMY_COST) - cost[i][j], 3)
             cl.account_mode = "chain_elimination" if feasible == 1 else "chain_soft"
             cl.resources[a.resource_id] = Link(a.resource_id, cl.account_mode, cl.account_margin, (a.activity_id,))
-        for c in cases:
-            cl = result[c.case_id]
-            if cl.account_mode == "chain_pinned":
-                rid = cl.account_event.resource_id
-                cl.resources[rid].evidence = tuple(sorted(set(cl.resources[rid].evidence) | {cl.account_event.activity_id}))
 
     def _action_cost(self, a: Activity, c, result) -> float:
         off = (a.event_time - c.reported_at).total_seconds() / H
@@ -272,6 +334,9 @@ class LinkerAgent:
         cost = (off - band) ** 2
         if self._cooccurs(a.resource_id, c, result):
             cost -= COOCCURRENCE_BONUS
+        acct = result[c.case_id].account_event
+        if acct is not None and self.clock:
+            cost += PHASE_WEIGHT * (-1 if self.clock.fits(acct.event_time, a.event_time) else 1)
         return cost
 
     def _link_actions(self, cases, result, owner_of, events):
