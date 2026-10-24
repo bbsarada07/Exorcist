@@ -2,7 +2,8 @@
 
 decision_trace.jsonl  USP1  why every emitted step exists (rule, category, evidence chain, agent)
 lie_report.json       USP2  reported_status vs reconstructed truth, failure-mode counts
-confidence.json       USP3  per-case 0-1 confidence; review_queue.json lists low-confidence cases
+confidence.json       USP3  per-case 0-1 confidence; review_queue.json lists low-confidence cases and every
+                            ambiguous (guessed) chain link
 lineage.json          USP4  resurrection / recreation paths for INCOMPLETE cases
 conflicts.jsonl       USP5  contradictory source pairs and which side was trusted
 risk_scores.json      USP6  transparent exposure heuristic ("fix these first"), not a financial estimate
@@ -30,6 +31,26 @@ def _jsonl(path: Path, rows) -> None:
 
 
 # ---------------- USP3 ----------------
+AMBIGUOUS_ACCOUNT_MARGIN = 0.3     # account chain link whose runner-up is this close is a guess
+AMBIGUOUS_RESOURCE_MARGIN = 0.05   # identifier-free record tied with another case
+
+
+def ambiguous_links(r) -> list[dict]:
+    """Chain links (worker timing / clock, no identifier) that another assignment explains about as well."""
+    if not r.links:
+        return []
+    out = []
+    cl = r.links
+    if cl.account_mode == "chain_soft" and (cl.account_margin or 0) < AMBIGUOUS_ACCOUNT_MARGIN:
+        out.append({"resource_id": cl.account_event.resource_id, "kind": "account", "margin": cl.account_margin})
+    emitted = {s.resource_id for s in r.steps}
+    for l in cl.resources.values():
+        if l.resource_id in emitted and l.mode == "chain_soft" and not l.resource_id.startswith("account_") \
+                and (l.margin or 0) < AMBIGUOUS_RESOURCE_MARGIN:
+            out.append({"resource_id": l.resource_id, "kind": "identifier_free_tie", "margin": l.margin})
+    return out
+
+
 def confidence(r) -> tuple[float, list[str]]:
     if r.status == "NOT_APPLICABLE":
         return round(r.case.intent.confidence, 3), ([] if r.case.intent.confidence >= 0.8 else ["intent uncertain"])
@@ -39,11 +60,10 @@ def confidence(r) -> tuple[float, list[str]]:
     score *= mode_w.get(cl.account_mode, 0.6)
     if cl.account_mode in ("chain_soft", "none"):
         reasons.append(f"account linked by {cl.account_mode}" + (f" (margin {cl.account_margin})" if cl.account_margin is not None else ""))
-    if cl.account_mode == "chain_soft" and (cl.account_margin or 0) < 0.3:
+    amb = ambiguous_links(r)
+    if any(x["kind"] == "account" for x in amb):
         score *= 0.85
-    emitted = {s.resource_id for s in r.steps}
-    weak = [l for l in cl.resources.values() if l.resource_id in emitted and l.mode == "chain_soft"
-            and not l.resource_id.startswith("account_") and (l.margin or 0) < 0.05]
+    weak = [x for x in amb if x["kind"] == "identifier_free_tie"]
     if weak:
         score *= 0.8 ** len(weak)
         reasons.append(f"{len(weak)} identifier-free resource(s) assigned with ~zero margin")
@@ -223,11 +243,24 @@ def write_sidecars(engine, results, out_dir: Path, llm=None, ids: list[str] | No
     conf, queue = {}, []
     for cid in all_ids:
         score, reasons = confidence(results[cid])
-        conf[cid] = {"confidence": score, "reasons": reasons}
-        if cid in ids and score < REVIEW_CONFIDENCE_THRESHOLD:
-            queue.append({"case_id": cid, "confidence": score, "status": results[cid].status, "reasons": reasons})
+        amb = ambiguous_links(results[cid])
+        conf[cid] = {"confidence": score, "reasons": reasons, "ambiguous_links": amb}
+        no_account = results[cid].links is not None and results[cid].links.account_mode == "none"
+        # every guessed (ambiguous) chain link is queued, as are deletion cases with no account evidence at all,
+        # plus anything below the confidence threshold
+        if cid in ids and (score < REVIEW_CONFIDENCE_THRESHOLD or amb or no_account):
+            queue.append({"case_id": cid, "confidence": score, "status": results[cid].status, "reasons": reasons,
+                          "ambiguous_links": amb})
     _dump(out_dir / "confidence.json", conf)
-    _dump(out_dir / "review_queue.json", {"threshold": REVIEW_CONFIDENCE_THRESHOLD, "cases": queue})
+    _dump(out_dir / "review_queue.json", {
+        "threshold": REVIEW_CONFIDENCE_THRESHOLD,
+        "rule": "queued if confidence < threshold OR the case has an ambiguous chain link "
+                f"(account margin < {AMBIGUOUS_ACCOUNT_MARGIN}, identifier-free tie margin < {AMBIGUOUS_RESOURCE_MARGIN}) "
+                "OR no account evidence exists for a deletion case",
+        "no_account_evidence_cases": [q["case_id"] for q in queue if any("account linked by none" in r for r in q["reasons"])],
+        "ambiguous_account_links": sum(1 for q in queue for x in q["ambiguous_links"] if x["kind"] == "account"),
+        "ambiguous_identifier_free_ties": sum(1 for q in queue for x in q["ambiguous_links"] if x["kind"] == "identifier_free_tie"),
+        "cases": queue})
 
     _dump(out_dir / "lineage.json", {cid: lineage(engine, results[cid]) for cid in ids if results[cid].status == "INCOMPLETE"})
     _jsonl(out_dir / "conflicts.jsonl", conflicts(engine, results, ids))

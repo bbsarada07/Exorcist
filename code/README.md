@@ -69,7 +69,7 @@ dataset/ ──► parsers/ ──► Fact table (3,047 facts, 369 coverage snap
 |---|---|
 | `decision_trace.jsonl` | per emitted step: rule_id, category + where it came from, evidence chain, producing agent, link mode |
 | `lie_report.json` | reported status vs reconstructed truth; failure modes (false COMPLETE, replica drift, resurrection, restore risk, leakage, tombstone hash) |
-| `confidence.json`, `review_queue.json` | 0–1 confidence per case from link mode, assignment margin, drift, conflicts; low ones queued with reasons |
+| `confidence.json`, `review_queue.json` | 0–1 confidence per case from link mode, assignment margin, drift, conflicts; the queue holds every case below 0.6, every ambiguous (guessed) chain link with its margin, and every deletion case with no account evidence |
 | `lineage.json` | recreation paths (connector / restore job / replication → recreated record) |
 | `conflicts.jsonl` | catalog vs content, primary vs replica, claimed result vs evidence, rejected decoys — with the side trusted and why |
 | `risk_scores.json` | transparent exposure heuristic (weights in `audit/config.py`), "fix these first" ranking |
@@ -83,6 +83,12 @@ the honest ceiling (3 gold steps reference resources that exist in no participan
 **1.0**, ordering **1.0**. Overfitting check (tune on 16 samples, test on 16, 5 splits × 2 directions): mean
 held-out F1 = mean train F1 = 0.9918. Custom cases 12/12. Metamorphic R1–R5 all 100%. Evaluation set: 518 rows,
 validation passed, 0 simulation failures, no LLM tokens used.
+
+Read the sample score as an **upper bound**: the structural rules were derived while inspecting the samples and the
+held-out check covers tunable parameters only. Identifier-free resources are linked with a worker-clock regularity
+(30 s tick) learned from unlabeled logs on every run; each guessed link is flagged in `review_queue.json`
+(final run: 41 ambiguous account links, 16 analytics ties). Known risk: 10 hand-built multimodal cases
+(case_33, 35, 39, 45, 50, 52, 53, 55, 61, 63) have no account evidence and therefore no account step.
 
 ## 60-second demo script
 
