@@ -28,7 +28,7 @@ export function TopBar() {
   const open = useUI((s) => s.open);
   const setPalette = useUI((s) => s.setPalette);
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 py-4 md:px-8">
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-gradient-to-b from-ink via-ink/85 to-transparent px-5 pb-8 pt-4 md:px-8">
       <button onClick={() => { open(null); window.scrollTo({ top: 0 }); }} className="pointer-events-auto flex items-baseline gap-3">
         <span className="display text-2xl italic text-bone">Exorcist</span>
         <span className="mono hidden text-[10px] uppercase tracking-[0.25em] text-muted sm:inline">deletion audit</span>

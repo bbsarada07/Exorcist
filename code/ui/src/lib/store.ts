@@ -13,8 +13,9 @@ interface UIState {
   reviewOnly: boolean;
   cursor: number;              // keyboard focus index in the filtered graveyard
   palette: boolean;
+  originRect: { x: number; y: number; w: number; h: number } | null; // tombstone rect for the shared-element zoom
   setLite: (v: boolean) => void;
-  open: (id: string | null) => void;
+  open: (id: string | null, origin?: DOMRect | null) => void;
   setView: (v: View) => void;
   setQuery: (q: string) => void;
   setStatusFilter: (s: Status | "ALL") => void;
@@ -46,14 +47,15 @@ export const useUI = create<UIState>((set) => ({
   reviewOnly: false,
   cursor: 0,
   palette: false,
+  originRect: null,
   setLite: (lite) => {
     try { localStorage.setItem("exorcist.lite", lite ? "1" : "0"); } catch { /* storage unavailable */ }
     set({ lite });
   },
-  open: (caseId) => {
+  open: (caseId, origin = null) => {
     const target = caseId ? `#/case/${caseId}` : "#/";
     if (location.hash !== target) history.pushState(null, "", target);
-    set({ caseId });
+    set({ caseId, originRect: origin ? { x: origin.left, y: origin.top, w: origin.width, h: origin.height } : null });
   },
   setView: (view) => set({ view }),
   setQuery: (query) => set({ query, cursor: 0 }),
