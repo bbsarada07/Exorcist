@@ -42,9 +42,13 @@ export class GhostField {
     for (let i = 0; i < this.n; i++) {
       this.x[i] = Math.random() * this.w; this.y[i] = Math.random() * this.h; this.seed[i] = Math.random();
     }
-    // two drifting copies of every fragment so the flashlight almost always finds something
-    this.frags = [...FRAGMENTS, ...FRAGMENTS].map((text, i) => ({ text, x: ((i * 0.618034) % 1) * this.w * 0.9 + this.w * 0.05,
-                                               y: ((i * 0.381966 + 0.13) % 1) * this.h * 0.9 + this.h * 0.05, v: 0.004 + (i % 5) * 0.002 }));
+    // fragments on a jittered 7x4 grid (two copies of the list) so any flashlight position reveals at least one
+    const all = [...FRAGMENTS, ...FRAGMENTS];
+    this.frags = all.map((text, i) => {
+      const gx = i % 7, gy = Math.floor(i / 7) % 4;
+      return { text, x: ((gx + 0.25 + 0.5 * ((i * 0.618034) % 1)) / 7) * this.w,
+               y: ((gy + 0.2 + 0.6 * ((i * 0.381966) % 1)) / 4) * this.h, v: 0.003 + (i % 5) * 0.0015 };
+    });
     this.io = new IntersectionObserver(([e]) => { this.visible = e.isIntersecting; this.toggle(); });
     this.io.observe(canvas);
     this.toggle();
@@ -114,6 +118,18 @@ export class GhostField {
       ctx.fillStyle = g; ctx.fillRect(this.sx - R * 1.3, this.sy - R * 1.3, R * 2.6, R * 2.6);
     }
 
+    // once the particles have nearly settled, a faint underlay of the same glyphs makes the word legible
+    if (s > 0.85) {
+      const size = Math.min(w * 0.2, h * 0.32);
+      // the trail fade (34% ink per frame) accumulates this to ~3x: 0.07 settles near a 20% underlay
+      ctx.globalAlpha = Math.min(0.07, (s - 0.85) * 0.5);
+      ctx.fillStyle = "#EDE9E0";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = `400 ${size}px "Instrument Serif", Georgia, serif`;
+      ctx.fillText("EXORCIST", w / 2, h * 0.4);
+      ctx.globalAlpha = 1;
+    }
+
     const tt = t * 0.00012;
     for (let i = 0; i < this.n; i++) {
       const sd = this.seed[i];
@@ -141,8 +157,10 @@ export class GhostField {
     ctx.globalAlpha = 1;
 
     // masked PII fragments: only visible inside the flashlight
-    ctx.font = `500 13px "JetBrains Mono Variable", monospace`;
+    ctx.font = `500 14px "JetBrains Mono Variable", monospace`;
     ctx.textAlign = "center";
+    ctx.shadowColor = "#7CFFB2";
+    ctx.shadowBlur = 10;   // only a handful of fragments are ever lit, so the blur cost stays tiny
     for (const f of this.frags) {
       f.y -= f.v * k * 6; if (f.y < -20) f.y = h + 20;
       const dx = f.x - this.sx, dy = f.y - this.sy;
@@ -152,6 +170,7 @@ export class GhostField {
       ctx.fillStyle = "#7CFFB2";
       ctx.fillText(f.text, f.x, f.y);
     }
+    ctx.shadowBlur = 0;
     ctx.globalAlpha = 1;
   }
 
