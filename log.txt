@@ -74,3 +74,24 @@ repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
 
+## [2026-10-24T14:35:31Z] Phase 1 review: mismatch audit, worker clock, holdout, guardrails, low-confidence review
+
+User Prompt (verbatim, secrets redacted):
+[Pasted brief] Phase 1 review. 1. Print the sample evaluation (case accuracy, per-status confusion, step P/R/F1, per-field accuracy, sequence accuracy). 2. For every mismatch list case, expected vs got, responsible agent, and whether the fix is a general rule or only reachable by hardcoding; fix general ones, re-run, show before/after. 3. Overfitting check: tune on half the samples, test on the other half, report both. 4. Run no-hardcode lint, determinism test, validator on a full 518 run. 5. Review the 20 lowest-confidence cases by hand (uncertainty reason; logic wrong vs evidence ambiguous). 6. Check the full-run distribution (status split, avg steps, ~10 NOT_APPLICABLE matching the 10 non-deletion events). Do not start the UI yet.
+
+Agent Response Summary:
+Of 6 sample mismatches, 3 are an honest ceiling (resources absent from all participant data) and 3 were LinkerAgent errors on identifier-free records. Found a general, data-learned rule: the deletion worker runs each case on a 30 s tick anchored at its account delete (residues 10/21 s, 361/361 unlabeled pinned pairs); adding it as a cost term took sample step F1 from 0.979 to 0.992 (TP 187->190, FP 2->0, recall = ceiling), 90 eval rows changed, 0 status changes. Holdout over 567 configs x 10 folds shows mean train/test F1 0.9918/0.9918 (gap 0.000); lint, determinism and validator pass; all 20 lowest-confidence cases are genuinely ambiguous evidence, not logic errors; distribution matches samples and NOT_APPLICABLE = 10 = CLASSIFY_REQUEST events.
+
+Actions:
+* Edited code/audit/linker.py (WorkerClock learner, phase cost term, pin/assign split)
+* Created code/evaluation/holdout.py; updated code/evaluation/report.py and regenerated evaluation_report.md / usage_report.md
+* Ran code/main.py (validation passed), unit tests (6 OK), build_zip.py; updated README, CONVENTIONS, DEV_LOG, INTERVIEW_NOTES; commits b68144c, 2344ea6
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
+
