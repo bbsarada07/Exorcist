@@ -8,3 +8,5 @@ code/out/
 code/ui/node_modules/
 code/ui/dist/
 code.zip
+*.tsbuildinfo
+code/ui/.vite/
