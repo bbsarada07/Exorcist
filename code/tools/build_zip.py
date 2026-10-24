@@ -12,7 +12,7 @@ from pathlib import Path
 CODE = Path(__file__).resolve().parent.parent
 REPO = CODE.parent
 EXCLUDE_DIRS = {"__pycache__", "cache", "node_modules", ".venv", "venv", "dist", "data", "dataset", ".git",
-                ".vite", "test-results", "playwright-report", "coverage"}
+                ".vite", "test-results", "playwright-report", "blob-report", "coverage"}
 EXCLUDE_FILES = {".env"}
 EXCLUDE_SUFFIX = {".zip", ".tar", ".gz", ".tgz", ".7z", ".rar", ".pyc", ".tsbuildinfo", ".mp4", ".mov", ".webm"}
 SECRET = re.compile(r"(sk-ant-[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)")
