@@ -1,5 +1,8 @@
 # UI data notes — every field the UI shows and where it comes from
 
+code/ui/public/data/ contains derived engine outputs (statuses, steps, evidence ids, scores, masked emails), not the dataset or its evidence files.
+The customers' free-text `request_text` is a dataset field and is **not** exported (the UI shows the engine's intent verdict instead); `npm run test:privacy` fails on unmasked emails, phone numbers, 64-char hashes, dataset person names, raw request texts or any non-derived field.
+
 The UI never computes verdicts. `npm run export-data` (code/ui/scripts/export-data.mjs) reads the engine outputs
 read-only and writes `code/ui/public/data/summary.json` (94 KB, 5 KB gz) and `details.json` (1.2 MB, 88 KB gz).
 
@@ -31,7 +34,7 @@ read-only and writes `code/ui/public/data/summary.json` (94 KB, 5 KB gz) and `de
 
 `details.json` (`{case_id: …}`)
 - `status`, `steps[[phase, operation, system_id, resource_id, state, evidence_id]]` ← output.csv
-- `reported, requested_at, reported_at, audit_at, user_id, identity_match, intent, request_text` ← cases.json
+- `reported, requested_at, reported_at, audit_at, user_id, identity_match, intent` ← cases.json (request text deliberately not exported)
 - `email` ← cases.json, masked to `abc••@••••.tld`
 - `confidence, confidence_reasons` ← confidence.json; `review{reasons, links}` ← review_queue.json
 - `verdict, failure_modes` ← lie_report.json

@@ -95,6 +95,7 @@ held-out check covers tunable parameters only. Identifier-free resources are lin
 A cinematic, read-only front end over the engine's outputs (Vite + React + TypeScript + Tailwind, Framer Motion,
 GSAP, Lenis, Zustand). Fully offline: fonts are bundled, and the UI loads only the static JSON in
 `code/ui/public/data/` (committed), so it runs without Python.
+code/ui/public/data/ contains derived engine outputs (statuses, steps, evidence ids, scores, masked emails), not the dataset or its evidence files. `npm run test:privacy` enforces it.
 
 ```bash
 cd code/ui

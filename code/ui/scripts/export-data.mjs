@@ -1,7 +1,8 @@
 // npm run export-data
 // Converts engine outputs (code/out/*, <repo>/output.csv) into small static JSON under public/data/.
 // Read-only with respect to the engine: it never writes outside code/ui/public/data.
-// Privacy: subject emails are masked (k.r••@••••.com style) and raw identifier lists are dropped.
+// Privacy: only derived engine outputs are exported. Subject emails are masked (k.r••@••••.com style); raw
+// identifier lists and the customers' free-text requests are dropped. `npm run test:privacy` enforces this.
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -92,6 +93,7 @@ for (const row of output) {
     c: conf[id]?.confidence ?? null,
     v: l?.verdict ?? null,
     sys: [...new Set(steps.map((x) => x.system_id))],
+    ev: [...new Set(steps.map((x) => x.evidence_id).filter(Boolean))],   // cited evidence ids (search)
   });
   details[id] = {
     id,
@@ -103,8 +105,7 @@ for (const row of output) {
     email: maskEmail(c.email),
     user_id: c.user_id,
     identity_match: c.identity_match,
-    intent: c.intent,
-    request_text: c.request_text,
+    intent: c.intent,   // the engine's intent verdict; the raw request text is a dataset field and is not exported
     confidence: conf[id]?.confidence ?? null,
     confidence_reasons: conf[id]?.reasons ?? [],
     review: q ? { reasons: q.reasons, links: q.ambiguous_links } : null,
