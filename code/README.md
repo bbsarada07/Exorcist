@@ -90,6 +90,32 @@ held-out check covers tunable parameters only. Identifier-free resources are lin
 (final run: 41 ambiguous account links, 16 analytics ties). Known risk: 10 hand-built multimodal cases
 (case_33, 35, 39, 45, 50, 52, 53, 55, 61, 63) have no account evidence and therefore no account step.
 
+## UI — "Exorcist" (code/ui)
+
+A cinematic, read-only front end over the engine's outputs (Vite + React + TypeScript + Tailwind, Framer Motion,
+GSAP, Lenis, Zustand). Fully offline: fonts are bundled, and the UI loads only the static JSON in
+`code/ui/public/data/` (committed), so it runs without Python.
+
+```bash
+cd code/ui
+npm install
+npm run dev            # http://localhost:5173
+npm run build          # type-check + production build to code/ui/dist (not committed, not zipped)
+npm run preview        # serve the production build
+npm run export-data    # after re-running `python code/main.py`: code/out + output.csv -> public/data/*.json
+npm run shots          # optional: screenshots to code/docs/ui via a locally installed Chrome/Edge
+```
+
+Screens (Tier 1): **The Summoning** (canvas particle hero, flashlight reveals masked identifiers, wordmark +
+real counters) · **The Graveyard** (518 tombstones, filters, `/` search, `j`/`k`/Enter, ledger view, `ctrl/cmd+K`
+palette over cases, systems and evidence ids) · **Case file** (shared-element zoom, request, review reasons,
+confidence, heuristic risk, runbook with "why this step exists" from `decision_trace.jsonl`) · **Reported vs
+Reality** (glitching legacy claim vs reconstructed truth and failure modes from `lie_report.json`) · **The
+Exorcism** (GSAP sequence generated from the case's remediation steps; proof view for COMPLETE cases). A visible
+**Lite mode** toggle (default on with `prefers-reduced-motion`) removes particles and effects but keeps every number.
+Details: `docs/UI_DATA_NOTES.md` (every field and its source), `docs/DESIGN_NOTES.md`, `docs/DEMO_SCRIPT.md`,
+`ui/src/effects/README.md`; screenshots in `docs/ui/`.
+
 ## 60-second demo script
 
 1. `python code/main.py` — "518 rows in ~3 seconds, validator green, zero simulation failures."

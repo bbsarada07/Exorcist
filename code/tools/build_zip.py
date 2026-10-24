@@ -11,15 +11,20 @@ from pathlib import Path
 
 CODE = Path(__file__).resolve().parent.parent
 REPO = CODE.parent
-EXCLUDE_DIRS = {"__pycache__", "cache", "node_modules", ".venv", "venv", "dist", "data", "dataset", ".git"}
+EXCLUDE_DIRS = {"__pycache__", "cache", "node_modules", ".venv", "venv", "dist", "data", "dataset", ".git",
+                ".vite", "test-results", "playwright-report", "coverage"}
 EXCLUDE_FILES = {".env"}
-EXCLUDE_SUFFIX = {".zip", ".tar", ".gz", ".tgz", ".7z", ".rar", ".pyc"}
+EXCLUDE_SUFFIX = {".zip", ".tar", ".gz", ".tgz", ".7z", ".rar", ".pyc", ".tsbuildinfo", ".mp4", ".mov", ".webm"}
 SECRET = re.compile(r"(sk-ant-[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)")
 
 
 def included(p: Path) -> bool:
     rel = p.relative_to(CODE)
-    return not (set(rel.parts) & EXCLUDE_DIRS or p.name in EXCLUDE_FILES or p.suffix.lower() in EXCLUDE_SUFFIX)
+    parts = set(rel.parts)
+    # code/ui/public/data is the UI's committed static export (it must ship); any other "data" dir is excluded
+    if "data" in parts and rel.parts[:3] == ("ui", "public", "data"):
+        parts.discard("data")
+    return not (parts & EXCLUDE_DIRS or p.name in EXCLUDE_FILES or p.suffix.lower() in EXCLUDE_SUFFIX)
 
 
 def main() -> int:
