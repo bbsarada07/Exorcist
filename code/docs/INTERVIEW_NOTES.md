@@ -32,8 +32,10 @@ cited observation, every plan is proven by simulation, and every output row pass
 
 ## Trade-offs / known limits
 - 3 sample gold steps reference resources that appear in no participant file → honest recall ceiling 0.9845.
-- When several cases share `reported_at` and claimed result, identifier-free records are inherently ambiguous
-  (measured ~50% order consistency). We do not invent a tie-breaker; we flag low margin in the review queue.
+- Identifier-free records are linked with a learned **worker clock**: each case's worker actions sit at fixed
+  residues (10 s / 21 s mod 30 s) after its account delete — learned from 361 unlabeled pinned pairs, it fixed
+  every reachable sample error. Remaining ties (several candidates fit claim and clock) are flagged, not guessed.
+- Overfitting check: knobs tuned on half the samples reproduce exactly on the other half (gap 0.000).
 - Snapshot omissions are weak evidence of absence (inventories list only relevant rows); they decide existence only
   when nothing explicit exists or when the snapshot is one of the case's own files.
 - OCR depends on Tesseract; misreads within edit distance 2 are tolerated for linking, never for decoys.

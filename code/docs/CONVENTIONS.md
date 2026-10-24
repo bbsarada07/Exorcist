@@ -42,6 +42,11 @@ re-checked against the evaluation harness.
     relation to user or case number. Therefore `account_004`, `audit_record_6645`, `audit_record_5569`
     stay unreachable (honest ceiling), nothing is hardcoded.
 
+14. **Worker clock** (`linker.WorkerClock`): the deletion worker schedules each case's actions on a tick anchored at
+    that case's account delete. Learned per run from unlabeled pinned pairs (account delete, identifier-linked
+    action): period 30 s, residues {10 s, 21 s}, tolerance ±1 s, coverage 361/361. Used only as a cost term when
+    linking identifier-free records; disabled automatically if no period shows clear structure.
+
 ## Identity
 13. Normalise emails with `strip().lower()`; hash = sha256 of the normalised email.
 14. A user's identifiers = current email/phone/hash/name + every historical value from the audit log.

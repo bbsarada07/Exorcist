@@ -22,6 +22,7 @@ Runs offline in ~3 s after the first run. External tools used for document evide
 | `python code/evaluation/custom_cases.py` | 12 custom scenarios injected into a temp copy of `dataset/` |
 | `python code/evaluation/metamorphic.py` | metamorphic relations R1–R5 incl. the seeded mutation generator |
 | `python code/evaluation/citation_study.py` | empirical choice of the citation rule |
+| `python code/evaluation/holdout.py` | overfitting check: tune knobs on half the samples, score the other half |
 | `python code/evaluation/report.py` | regenerates `evaluation/evaluation_report.md` and `evaluation/usage_report.md` |
 | `python -m unittest discover -s code/tests` | no-hardcode lint, determinism (two hash seeds), validator negative tests |
 | `python code/tools/inspect_case.py case_123` | debug view: links, observations, assessments, steps |
@@ -77,9 +78,10 @@ dataset/ ──► parsers/ ──► Fact table (3,047 facts, 369 coverage snap
 
 ## Results (measured, see `evaluation/evaluation_report.md`)
 
-Samples: status accuracy **1.0**, strict step F1 **0.979** (honest ceiling recall 0.9845 because 3 gold steps
-reference resources that exist in no participant file), evidence_id accuracy **1.0** on aligned steps,
-ordering **1.0**. Custom cases 12/12. Metamorphic relations R1–R5 all 100%. Evaluation set: 518 rows,
+Samples: status accuracy **1.0**, strict step precision **1.0** / recall **0.9845** / F1 **0.992** — recall equals
+the honest ceiling (3 gold steps reference resources that exist in no participant file), evidence_id accuracy
+**1.0**, ordering **1.0**. Overfitting check (tune on 16 samples, test on 16, 5 splits × 2 directions): mean
+held-out F1 = mean train F1 = 0.9918. Custom cases 12/12. Metamorphic R1–R5 all 100%. Evaluation set: 518 rows,
 validation passed, 0 simulation failures, no LLM tokens used.
 
 ## 60-second demo script

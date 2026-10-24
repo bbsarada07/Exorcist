@@ -20,7 +20,7 @@ from audit.llm import PRICES, read_ledger  # noqa: E402
 from audit.pipeline import AuditEngine  # noqa: E402
 from audit.sidecars import confidence, lie_report  # noqa: E402
 from audit.util import case_sort_key, read_csv  # noqa: E402
-from evaluation import citation_study, custom_cases, metamorphic  # noqa: E402
+from evaluation import citation_study, custom_cases, holdout, metamorphic  # noqa: E402
 from evaluation.metrics import load_rows, score  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -51,6 +51,11 @@ FAILURES = [
     ("Hardcode lint caught a dataset id in a comment", "Example id inside a code comment.", "Comment generalised; lint passes."),
     ("Intent rules missed free-form follow-ups", "'remove that search result', 'profile is gone', and 'download your data' "
      "(misread as an export request).", "Broadened deletion cues + narrower access cues: 550/550 requests classified with high confidence."),
+    ("Identifier-free records were coin flips (case_23 account, case_25/26 analytics)",
+     "Phase-1 review: within one case, identifier-linked worker actions sit at a fixed residue modulo a short period relative "
+     "to the case's account delete (the worker runs each case on its own scheduler tick).",
+     "WorkerClock learned from 361 unlabeled pinned pairs (period 30 s, residues 10/21 s, 100% coverage) and used as a cost "
+     "term: sample TP 187 -> 190, FP 2 -> 0, F1 0.979 -> 0.992 (= ceiling); 90 eval rows changed, 0 status changes."),
 ]
 
 
@@ -87,6 +92,7 @@ def main():
     lie = lie_report(results, eval_ids)
     cit_scores, cit_total, cit_unreach, _ = citation_study.study(engine, results)
     custom = custom_cases.run(verbose=False)
+    hold = holdout.run(verbose=False)
     meta = metamorphic.run(verbose=False)
     decoys = json.loads((OUT_DIR / "decoys.json").read_text(encoding="utf-8")) if (OUT_DIR / "decoys.json").exists() else {}
 
@@ -146,10 +152,16 @@ def main():
         miss = ", ".join(f"{s['operation']} {s['resource_id']}" for s in d["missing"]) or "-"
         extra = ", ".join(f"{s['operation']} {s['resource_id']}" for s in d["extra"]) or "-"
         L.append(f"- **{d['case_id']}** missing: {miss}; extra: {extra}")
-    L.append("\nThe non-ceiling errors are identifier-free records (an anonymised analytics profile, one account) whose only "
-             "link is the deletion-worker chain while several cases share the same reported_at and the same claimed result: "
-             "timing cannot separate them (measured: event order within a reported_at group is ~50% consistent with any "
-             "ordering key). These cases get low confidence and appear in the review queue.\n")
+    unreachable_ids = {r for _, r in unreachable}
+    other = [d for d in m["diffs"] if any(s["resource_id"] not in unreachable_ids for s in d["missing"] + d["extra"])]
+    if other:
+        L.append(f"\n{len(other)} mismatching case(s) are not explained by the ceiling; see the diffs above.\n")
+    else:
+        L.append("\nEvery remaining sample mismatch is explained by the ceiling: no reachable gold step is missed and no "
+                 "extra step is emitted. Residual risk on the evaluation set is genuine ambiguity (several cases sharing "
+                 "reported_at, claim and worker-clock phase for an identifier-free record); those cases are flagged in "
+                 "the review queue.\n")
+    L.append(f"Worker clock learned on this run: `{engine.linker.clock}`.\n")
     L.append("## 5. Linking modes\n")
     L.append(_table(["link mode (samples)", "emitted steps", "strictly correct", "precision"],
                     [[k, v[0], v[1], f"{v[1] / v[0]:.3f}"] for k, v in sorted(modes.items())]))
@@ -167,6 +179,18 @@ def main():
     L.append(f"\n{cit_unreach} cited gold steps concern unreachable resources, so {cit_total - cit_unreach} is the maximum; "
              "the chosen rule (latest pre-audit proof, explicit observations before snapshot omissions, files before "
              "activity rows) reaches it. Files captured after audit_at are never eligible.\n")
+    L.append("## 7b. Overfitting check: tune on half, test on the other half\n")
+    hs = hold["summary"]
+    L.append(f"Free knobs (co-occurrence bonus, worker-clock phase weight, expected account-delete offset, dummy cost, "
+             f"citation rule) grid-searched over {hs['configs_searched']} configurations on 16 samples, scored on the "
+             "other 16; both directions, 5 seeded splits (ties broken toward the shipped defaults).\n")
+    L.append(_table(["seed", "tuned train F1", "held-out test F1", "train/test status acc", "configs tied for best",
+                     "tuned = shipped defaults"],
+                    [[r["seed"], r["train_f1"], r["test_f1"], f"{r['train_status']}/{r['test_status']}", r["tied_best_configs"],
+                      "yes" if r["tuned_config"] == {**holdout.DEFAULT} else "no"] for r in hold["rows"]]))
+    L.append(f"\nMean train F1 {hs['mean_train_f1']}, mean held-out F1 {hs['mean_test_f1']}, mean gap {hs['mean_gap']}, "
+             f"max gap {hs['max_gap']} (the spread is which half contains the unreachable steps). No case-specific "
+             "rule was needed to reach these numbers.\n")
     L.append("## 8. Custom evaluation cases (12)\n")
     L.append("Each scenario is injected into a temporary copy of `dataset/` (never modified) and scored like a sample.\n")
     L.append(_table(["case", "scenario", "what it tests", "claim", "expected", "predicted", "exact"],

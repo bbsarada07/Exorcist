@@ -27,6 +27,19 @@
    disjoint synthetic id space → 40/40. Also: sync/restore jobs that ran now evidence an active path.
 10. **Tests**: hardcode lint caught a dataset id in a comment → fixed; determinism across hash seeds passes.
 
+## 2026-10-24 — Phase 1 review
+* Mismatch audit: 3 ceiling (no participant evidence), 3 linker errors on identifier-free records.
+* Found the worker clock (period 30 s, residues 10/21 s relative to the case's account delete; learned from 361
+  unlabeled pinned pairs, 100% coverage). Replaces the 390/449 s block-gap observation (13 and 15 ticks).
+  Samples: TP 187 → 190, FP 2 → 0, FN 6 → 3 (= ceiling), F1 0.979 → 0.992; 90 eval rows changed, 0 status changes.
+* Holdout (tune on 16 / test on 16, 5 seeds × 2 directions, 567 configs): mean gap 0.000, max 0.0095; tuned
+  configs always equal the shipped defaults (13–39 configs tie for best).
+* Lowest-confidence review: all 41 low-margin account links have 2–7 candidates that fit claim and clock equally
+  (genuine ambiguity); 16 identifier-free analytics links remain clock-ambiguous at ±1 s tolerance. A slot-aware
+  mod-60 phase would separate some, but only 4 unlabeled first-slot points exist → not implemented (documented).
+* Distribution: COMPLETE 29.5% / INCOMPLETE 68.5% / NOT_APPLICABLE 10 (= 10 CLASSIFY_REQUEST events); mean steps
+  3.44 / 7.69 vs samples 3.40 / 7.23. Flag: 10 handcrafted multimodal cases have no account evidence at all.
+
 ## Known ceiling
 `account_004` (case_04), `audit_record_6645` (case_18), `audit_record_5569` (case_20) occur in no participant
 file; no id-derivation convention exists (Decision 3). Identifier-free records shared by several cases with the
