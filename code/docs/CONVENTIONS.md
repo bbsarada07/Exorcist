@@ -6,9 +6,12 @@ re-checked against the evaluation harness.
 ## Output format
 1. Header `case_id,deletion_status,steps_json`; JSON serialised compactly with a fixed key order
    (`step_no, phase, system_id, resource_id, operation, state, evidence_id`) — grader ignores key order anyway.
-2. **Row order = numeric case order** (case_33, case_34, … case_550), i.e. natural sort on the numeric suffix.
-   Rationale: `deletion_requests.csv` itself is in that order and sample ids are zero-padded so both orders agree
-   there. *Open:* lexicographic order would put case_100 first; the validator checks our chosen order.
+2. **Row order = numeric case order** (case_33, case_34, … case_550), implemented once in
+   `audit.util.case_sort_key` (swappable). Evidence checked (Decision 1):
+   - `dataset/output.csv` template: header only, 0 data rows → no ordering information;
+   - `sample_output.csv`: case_01 … case_32, zero-padded, so numeric and lexicographic orders coincide → no information;
+   - `deletion_requests.csv` (the only file with unpadded ids) is in numeric order case_33 … case_550.
+   → We follow the input file's numeric order. The validator asserts whichever order `case_sort_key` defines.
 3. NOT_APPLICABLE → `[]` exactly.
 
 ## Step semantics

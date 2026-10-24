@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+code/cache/
+code/out/
+code/ui/node_modules/
+code/ui/dist/
+code.zip
