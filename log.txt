@@ -138,3 +138,115 @@ repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
 
+## [2026-10-24T16:48:07Z] SESSION START
+
+tool=Claude Code
+model=claude-opus-5-5
+Repo Root: C:\Users\bbsar\Desktop\Exorcist
+Branch: deletion-audit-agent
+Worktree: main
+Parent Agent: none
+Language: ts
+Time Remaining: not configured
+
+
+## [2026-10-24T18:31:37Z] UI final build: fluid, visibility, search, e2e tests, packaging
+
+User Prompt (verbatim, secrets redacted):
+EXORCIST UI: FINAL BUILD (visibility + fluid "ink in water" + Tier 1 polish + end-to-end testing + packaging)
+
+CONTEXT
+Tier 1 of the Exorcist UI exists in code/ui/. Problems: tombstones are dark-on-dark, search matches do not stand out, the "N of 518 shown" count is clipped, the background is nearly static. Goal: make it unforgettable, readable, truthful, fast, and PROVEN by tests. Work through the parts in order and show results after each part.
+
+HARD RULES (unchanged, never break)
+- UI only. Do NOT modify the engine, dataset/, output.csv, evaluation code, or anything that feeds output.csv. If you must touch them, stop and tell me why.
+- Real data only. Every number comes from code/ui/public/data (derived from code/out). Never invent numbers or data. Risk scores labeled "heuristic". Show confidence and "needs review" from review_queue.json with its reason.
+- Fully offline: bundled fonts and assets, no CDN, no network at demo time.
+- No real personal data in the UI. Hero fragments are generic masked patterns only. Exported emails stay masked.
+- Reduced-motion and Lite mode must keep ALL information. Status is never conveyed by color alone (always a text label). Text contrast >= 4.5:1.
+- Do not copy any reference site's text, layout, colors or assets. Use references for motion feel only.
+- Out of scope for now: Tier 2 and Tier 3 features.
+
+PART 0 - RECON
+Read docs/UI_DATA_NOTES.md, docs/DESIGN_NOTES.md, docs/DEMO_SCRIPT.md and the current UI. If code/ui/reference/ has images, study them: match the MOTION FEEL (slow, silky, continuous marbled fluid, crisp editorial type), not the colors. Write a short list of what looks dull today (screenshot every screen first, save to docs/ui/before/).
+
+PART 1 - DATA PRIVACY AUDIT (do first)
+- Audit code/ui/public/data/ and the export script. Files must hold only derived engine outputs (statuses, steps, evidence ids, scores, reasons). No raw dataset rows, no evidence file contents.
+- Scan for unmasked emails, phone numbers, 64-char hex hashes, and person names from the dataset. Print per-pattern counts ("0 found") and folder size.
+- If anything leaks, fix the export script, re-run npm run export-data, re-scan.
+- Add this line to code/README.md and docs/UI_DATA_NOTES.md: "code/ui/public/data/ contains derived engine outputs (statuses, steps, evidence ids, scores, masked emails), not the dataset or its evidence files."
+- Add npm run test:privacy that fails if any pattern appears.
+
+PART 2 - VISIBILITY AND CONTRAST (every screen)
+- Tombstones about 28-32px wide with more spacing. Haunted = clearly ember (#FF6B47 rim about 70% plus filled tint plus visible glow). Proven = clearly green (#7CFFB2). N/A = visible grey. Glyphs (! and check) readable at normal zoom.
+- Panels, chips, tooltips, labels: borders #34344A or lighter, muted text >= #B8B4C6, min font 12px. Reduce vignette and grain so they stop crushing content.
+- Glow scales visibly with findings count (faint halo low, bright pulsing halo high).
+
+PART 3 - SEARCH AND FILTERS THAT WORK
+- Typing in search or applying a filter: non-matches dim to about 8% opacity and desaturate; matches pop (full brightness, scale 1.4, pulsing ring); the first match auto-scrolls to center; a result strip above the grid reads like "1 match: case_483 - HAUNTED - 6 findings - press Enter to open" with an X button.
+- Support partial matches (case_48), system names and evidence ids. Explicit "no matches" state. The "N of 518 shown" count is fully visible, never clipped.
+- Filters (Haunted / Proven / N/A / Needs review) use the same highlight/dim behavior and combine with search.
+
+PART 4 - FLUID BACKGROUND: "INK IN WATER"
+- One full-screen raw WebGL fragment shader (no three.js): domain-warped fbm noise giving marbled ink swirls that slowly flow and morph. Render at 0.5x resolution scaled by CSS, cap 60fps, pause when the tab is hidden, auto-reduce resolution scale (0.5 -> 0.35 -> 0.25) when frame time degrades. Fallback in Lite mode, reduced-motion or no WebGL: animated CSS gradient.
+- Palette by meaning: ink base #07070B; ember veins = haunted; violet streams = active flows; green = proven. Keep overall brightness LOW; the fluid is atmosphere, never directly behind raw text.
+- Cursor stirs the fluid (damped velocity injection); click drops an ink-bloom ripple.
+- DATA-REACTIVE with real numbers: on hero and grid the ember/green ratio equals the real haunted vs proven share from the data; on a case page the fluid is ember when INCOMPLETE and green when COMPLETE; active data flows add violet currents. Document the mapping in docs/DESIGN_NOTES.md.
+- THE EXORCISM PURGE: during "Perform the Exorcism" ember is physically driven out; green floods in as a wave from the seal point, ember is pushed to the edges and fades; end state is calm green flow with the seal stamp. Replay resets it. Retained records are never animated.
+
+PART 5 - GLASS, TYPE, MOTION
+- Tombstones become frosted-glass pebbles (backdrop blur 8-12px, bright status rim light, inner glow) refracting the fluid. Haunted pebbles breathe; proven ones shimmer on hover.
+- All text sits on dark glass panels (tint 55-70% + blur) so contrast holds over any fluid color (test at the brightest moment).
+- Hero: huge Instrument Serif headline with italic accents and line-by-line mask reveal; numbered hairline sections (01 02 03); mono micro-labels; keep the flashlight reveal of masked PII fragments on top of the fluid; odometer counters; heartbeat pulse on the haunted counter.
+- Grid: wave ripple on load, slight 3D mouse tilt, cursor flashlight brightening nearby glow. Magnetic buttons, chip micro-interactions, Lenis scroll parallax, fog-dissolve transitions, ink-bloom transition when opening a case (grows from the clicked tombstone).
+- Keep: Reported vs Reality split-screen glitch, the three-phase runbook with the "why this step exists" panel from decision_trace.jsonl, COMPLETE proof view, Space to skip the exorcism, "/" search, j/k, Enter, Esc, ctrl/cmd+K palette.
+- Top bar: Exorcist wordmark, Lite toggle, Performance control (Auto / High / Low), palette hint.
+
+PART 6 - PERFORMANCE LAW
+Average >= 50 fps on a 4x CPU-throttled run for hero and grid, with auto-downgrade shown to trigger. One rAF loop for canvas effects, pause when hidden, particle count scaled by device. Initial bundle < 1.5MB gzipped. Report the real numbers.
+
+PART 7 - END-TO-END TESTS (must be run; show results)
+Add Playwright as a dev dependency. Tests in code/ui/tests/e2e/ run against npm run build && npm run preview. Block ALL external network requests in tests and fail on any.
+1. Load and data: no console errors; counters equal the real numbers read from public/data (518 total, haunted 355, proven 153, N/A 10, legacy-wrong % from lie_report) - read from the data files, never hardcoded in the test.
+2. Hero: canvas renders; click or scroll forms the wordmark; headline appears.
+3. Fluid: WebGL context created; shader compiles with no errors; canvas non-blank and pixels change over time; fluid ratio uniforms match the data ratio; WebGL disabled and reduced-motion both fall back to the CSS gradient with all information intact.
+4. Grid: 518 tombstones; status counts match the data; the 64 review-queue cases carry the review marker.
+5. Search: "case_483" gives exactly 1 highlighted match and the strip text is correct; "case_48" shows several; a system name works; an evidence id works; gibberish shows "no matches"; clearing restores all; count text fully visible (not clipped) at 1280x720 and 1920x1080.
+6. Filters: counts 355 / 153 / 10 / 64 and they combine with search.
+7. Keyboard: "/" focuses search; j/k move; Enter opens; Esc closes; ctrl+K opens the palette and jumps to a case; Space skips the exorcism.
+8. Case detail: an INCOMPLETE case shows the same step count as output.csv for that case, phases in order; a COMPLETE case shows only verification steps with evidence ids; a NOT_APPLICABLE case shows no steps.
+9. Exorcism: reaches the sealed end state, fluid flips ember to green, replayable and skippable; retained records never animated.
+10. Reported vs Reality: shows the case's reported_status and true status.
+11. Lite mode and reduced-motion: all information present, no canvas animation running.
+12. Accessibility: axe-core on hero, grid, case detail at three sampled fluid frames, 0 serious/critical violations; visible focus rings.
+13. Performance: measure fps and p95 frame time for 10 seconds under 4x CPU throttle; record the downgrade step; record the gzipped bundle size.
+14. Privacy: npm run test:privacy passes.
+15. Visual review: capture screenshots (hero dark, hero summoned, grid default, grid search case_483, grid Haunted filter, case detail, exorcism start/mid/end, proof view, Lite mode) in docs/ui/ and docs/ui/before/ for comparison. LOOK at them yourself and list any element still hard to read, then fix it.
+Fix every failure and re-run until everything passes. Write docs/UI_TEST_REPORT.md: tests and pass/fail, fps numbers, bundle size, privacy scan, issues found and fixed, known limits. Add scripts: test:e2e, test:privacy, test.
+
+PART 8 - PACKAGING AND DOCS
+- npm run build must succeed from a clean clone (npm ci or npm install).
+- Rebuild code.zip: no node_modules, dist, test-results, playwright caches, videos, secrets. Re-run the secret scan and report the result. Keep the UI data folder (derived outputs only).
+- Update docs/DESIGN_NOTES.md (decisions, performance choices, data-to-fluid mapping), docs/DEMO_SCRIPT.md (60-second path ending on the exorcism purge), and the UI section of code/README.md.
+
+DELIVERABLES
+Updated UI, passing tests, docs/UI_TEST_REPORT.md, before/after screenshots, rebuilt code.zip. Then show me a 5-line status and stop.
+
+Agent Response Summary:
+Completed Parts 0-8 of the UI final build without touching the engine, dataset/, output.csv or evaluation code. Added a data-reactive WebGL "ink in water" fluid (haunted/proven/active-flow shares, exorcism purge, auto-downgrade 0.5/0.35/0.25 then CSS + Lite hint), a visibility/contrast pass, search/filter highlighting with a sticky result strip, glass/type/motion polish, and a privacy scan (0 findings). Built a 56-test Playwright suite (offline-enforced, numbers read from data files and output.csv) that passes from a clean clone; fixing what it surfaced included an Enter key conflict, palette focus, grid performance (per-stone CSS animations replaced by one glow canvas: 7.6 to 59-82 fps under 4x throttle) and several readability overlaps. Wrote UI_TEST_REPORT.md, updated design notes, demo script and README, regenerated screenshots and rebuilt code.zip (secret scan clean).
+
+Actions:
+* code/ui/src/** (fluid, Graveyard, Hero, CaseDetail, Exorcism, Chrome, store, styles), code/ui/scripts/test-privacy.mjs, export-data.mjs
+* code/ui/playwright.config.ts, code/ui/tests/e2e/*.spec.ts; npm install @playwright/test@1.62.1 @axe-core/playwright@4.11.3 playwright-core@1.62.1
+* npm test (privacy + 56 e2e) locally and in a clean clone; SOFTWARE_GL perf run; npm run shots
+* code/docs/DESIGN_NOTES.md, DEMO_SCRIPT.md, UI_TEST_REPORT.md, UI_DATA_NOTES.md, code/README.md, code/ui/src/effects/README.md, code/docs/ui/**
+* code/tools/build_zip.py (exclude blob-report); python code/tools/build_zip.py -> code.zip (140 files, 4.07 MB)
+* git commits 3af99b2, 9e943cc, bd65df2, 34c48a3 on deletion-audit-agent
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
