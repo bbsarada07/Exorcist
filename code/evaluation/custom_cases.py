@@ -38,7 +38,8 @@ class Scenario:
         self.n, self.name, self.purpose, self.claim, self.text = n, name, purpose, claim, text
         day = BASE + timedelta(days=3 * n)
         self.requested, self.reported, self.audit = day - timedelta(days=2), day, day + timedelta(days=2)
-        self.uid, self.email = f"user_9{n:03d}", f"subject.c{n}@example.org"
+        # synthetic ids live in a 6-digit space disjoint from every id in the dataset (real ids collided once)
+        self.uid, self.email = f"user_99{n:04d}", f"subject.c{n}@example.org"
         self.case_id = f"custom_{n:02d}"
         self.identities, self.audit_log, self.activities, self.evidence = [], [], [], []
         self.expected_status, self.expected_steps = None, []
@@ -49,7 +50,7 @@ class Scenario:
         self._ev = 0
 
     def rid(self, kind: str, k: int = 1) -> str:
-        return f"{kind}_9{self.n:03d}{k}"
+        return f"{kind}_99{self.n:04d}{k}"
 
     def t(self, hours: float, ref=None) -> str:
         return iso((ref or self.audit) + timedelta(hours=hours))
@@ -195,7 +196,7 @@ def scenarios() -> list[Scenario]:
 
     s = Scenario(8, "reused_email_across_users", "Address belonged to another user until March; that user's old record must not leak in.")
     shared = s.email
-    prev_uid = f"user_9{s.n:03d}9"
+    prev_uid = f"user_99{s.n:04d}9"
     s.identities[0].update(email=shared)
     s.identities.append({"user_id": prev_uid, "name": "Previous Owner", "email": "previous.owner.c8@example.org",
                          "phone": "+1 555 0999 0000", "email_hash": email_hash("previous.owner.c8@example.org"),
@@ -264,13 +265,13 @@ def scenarios() -> list[Scenario]:
     sql = (f"-- Captured at: {s.t(-2)}\n-- Database topology: read_replica\nBEGIN TRANSACTION;\n"
            "CREATE TABLE customer_data_primary (resource_id TEXT, origin_system TEXT, collection_name TEXT, record_json TEXT, updated_at TEXT);\n"
            "CREATE TABLE customer_data_read_replica (resource_id TEXT, origin_system TEXT, collection_name TEXT, record_json TEXT, updated_at TEXT);\n"
-           f"INSERT INTO customer_data_primary VALUES('audit_record_9{s.n:03d}1','security_service','security_audit_events',"
-           f"'{json.dumps({'resource_id': f'audit_record_9{s.n:03d}1', 'subject_reference': s.uid})}','{s.t(-2)}');\n"
+           f"INSERT INTO customer_data_primary VALUES('audit_record_99{s.n:04d}1','security_service','security_audit_events',"
+           f"'{json.dumps({'resource_id': f'audit_record_99{s.n:04d}1', 'subject_reference': s.uid})}','{s.t(-2)}');\n"
            f"INSERT INTO customer_data_read_replica VALUES('{acc}','account_service','customer_profiles','{rec}','{s.t(-2)}');\n"
-           f"INSERT INTO customer_data_read_replica VALUES('audit_record_9{s.n:03d}1','security_service','security_audit_events',"
-           f"'{json.dumps({'resource_id': f'audit_record_9{s.n:03d}1', 'subject_reference': s.uid})}','{s.t(-2)}');\nCOMMIT;\n")
+           f"INSERT INTO customer_data_read_replica VALUES('audit_record_99{s.n:04d}1','security_service','security_audit_events',"
+           f"'{json.dumps({'resource_id': f'audit_record_99{s.n:04d}1', 'subject_reference': s.uid})}','{s.t(-2)}');\nCOMMIT;\n")
     f = s.file(sql, "databases", "sql")
-    aud = f"audit_record_9{s.n:03d}1"
+    aud = f"audit_record_99{s.n:04d}1"
     s.expect("INCOMPLETE", (F, "account_service", acc, "REPORT_REMAINING_RECORD", "PRESENT", f),
              (R, "account_service", acc, "DELETE_RECORD", "ABSENT", ""),
              (V, "account_service", acc, "VERIFY_RECORD_ABSENT", "ABSENT", ""),

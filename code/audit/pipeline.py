@@ -6,7 +6,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .cases import Case, assign_scopes, cases_from_rows, load_cases
+from .cases import Case, assign_scopes, cases_from_rows
+from .util import read_csv
 from .identity import IdentityAgent
 from .linker import CaseLinks, LinkerAgent
 from .model import system_of
@@ -45,13 +46,17 @@ class AuditEngine:
             if a.is_worker:
                 self.worker_by_resource[a.resource_id].append(a)
 
-    def load_all_cases(self, extra_rows: list[dict] | None = None) -> list[Case]:
-        """Sample and evaluation requests are linked together: they share subjects and worker chains."""
+    def load_all_cases(self, extra_rows: list[dict] | None = None, transform=None) -> list[Case]:
+        """Sample and evaluation requests are linked together: they share subjects and worker chains.
+
+        `transform(row) -> row` lets metamorphic tests mutate requests without touching dataset/.
+        """
         cases = []
         for name in ("sample_deletion_requests.csv", "deletion_requests.csv"):
             path = self.dataset_dir / name
             if path.exists():
-                cases += load_cases(path, self.identity, self.llm)
+                rows = read_csv(path)
+                cases += cases_from_rows([transform(dict(r)) for r in rows] if transform else rows, self.identity, self.llm)
         if extra_rows:  # custom evaluation cases / mutations
             cases += cases_from_rows(extra_rows, self.identity, self.llm)
         assign_scopes(cases)
@@ -74,8 +79,8 @@ class AuditEngine:
             out.append(self.policy.assess(state, case.audit_at, workers, self._exclusive(rid, case)))
         return out
 
-    def run(self, extra_rows: list[dict] | None = None) -> dict[str, CaseResult]:
-        cases = self.load_all_cases(extra_rows)
+    def run(self, extra_rows: list[dict] | None = None, transform=None) -> dict[str, CaseResult]:
+        cases = self.load_all_cases(extra_rows, transform)
         links = self.linker.link_all(cases)
         results = {}
         for case in cases:

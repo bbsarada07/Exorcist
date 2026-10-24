@@ -52,11 +52,13 @@ class TimelineAgent:
         self.coverage_by_system: dict[str, list[Coverage]] = {}
         for c in evidence.coverage:
             self.coverage_by_system.setdefault(c.system_id, []).append(c)
-        self.repopulated: dict[str, list[Activity]] = {}
+        self.repopulated: dict[str, list[Activity]] = {}   # downstream resource -> jobs that recreated it
+        self.recreators: dict[str, list[Activity]] = {}    # connector / backup -> jobs it ran
         for a in evidence.activities:
             if "repopulated downstream resource" in a.details:
                 for rid in a.mentions:
                     self.repopulated.setdefault(rid, []).append(a)
+                self.recreators.setdefault(a.resource_id, []).append(a)
 
     def observations(self, rid: str, system: str, until: datetime, names: frozenset = frozenset(),
                      case_files: frozenset = frozenset()) -> list[Observation]:
@@ -105,6 +107,11 @@ class TimelineAgent:
             if a.event_time <= until:
                 obs.append(Observation(a.activity_id, a.event_time, a.event_time, True, source="resurrection",
                                        attrs={"repopulated_by": a.resource_id}))
+        for a in self.recreators.get(rid, []):  # the path demonstrably ran: connector enabled / restore possible
+            if a.event_time <= until:
+                key = "enabled" if system == "integration_service" else "restore_allowed"
+                obs.append(Observation(a.activity_id, a.event_time, a.event_time, True, source="recreation_job",
+                                       attrs={key: True, "recreated": list(a.mentions)}))
         obs.sort(key=lambda o: (o.observed_at, o.exists is True, o.evidence_id))
         return obs
 
