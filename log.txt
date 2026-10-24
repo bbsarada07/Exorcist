@@ -52,3 +52,25 @@ repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
 
+## [2026-10-24T14:14:16Z] Phase 1 build: engine, evaluation, USP sidecars, reports, code.zip
+
+User Prompt (verbatim, secrets redacted):
+[Pasted brief] GO for Phase 1 with decisions: (1) row order from template/sample evidence, swappable sort; (2) choose the absence-proof citation rule empirically by scoring candidate rules on all gold verification steps; (3) derive unreachable audit-record ids only if a general convention exists, else report the ceiling; (4) marketing_001: trust record content over catalog, log both in conflicts.jsonl; (5) worker-chain linker as global min-cost (Hungarian) assignment with hard evidence pins, timing/claim soft costs, link mode and margin per case; (6) exact identity matching, decoys kept as near-miss rejections. Build order a-f with commits, Gate 2 >=95% case accuracy, run 518, validate, build code.zip, say SUBMIT. USPs 1-8 as sidecars in code/out (decision trace, legacy-lie report, confidence + review queue, resurrection lineage, conflict ledger, exposure ranking, metamorphic robustness, adversarial decoy metric); evaluation report additions (ceiling, linking-mode breakdown, calibration, lie headline, metamorphic rates, failures/fixes). 5-line status per gate.
+
+Agent Response Summary:
+Built the deterministic engine in code/audit (parsers for ~10 evidence formats into one fact table, identity graph with validity windows, multilingual intent, evidence + Hungarian worker-chain linker, timeline, policy, planner, simulator, validator) plus sidecars for all USPs. Decision 1: template/samples cannot disambiguate order, numeric input order used via one sort function; Decision 2: citation study picked latest-pre-audit-explicit-first (72/72 reachable); Decision 3: no id convention, 3 unreachable gold steps reported as ceiling; Decision 4 applied with a documented fail-safe when the contested record is a case's only evidence (1 eval case). Samples: status 1.0, strict step F1 0.979, evidence_id 1.0; custom cases 12/12; metamorphic R1-R5 100%; 518 rows validated, code.zip built.
+
+Actions:
+* Created code/audit/* (parsers, identity, intent, cases, linker, timeline, policy, planner, simulator, validator, pipeline, llm, sidecars, config, util, model), code/main.py
+* Created code/evaluation/* (metrics, main, citation_study, custom_cases, overlay, metamorphic, report) and generated evaluation_report.md, usage_report.md
+* Created code/tests/test_engine.py, code/tools/inspect_case.py, code/tools/build_zip.py, code/README.md, docs/INTERVIEW_NOTES.md; updated DEV_LOG, CONVENTIONS
+* Ran python code/main.py (output.csv at repo root, validation passed), unit tests, built code.zip; 10 commits on branch deletion-audit-agent
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
+
