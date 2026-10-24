@@ -33,8 +33,11 @@ class Case:
         return self.intent.authorises_deletion and self.user_id is not None
 
 
-def load_cases(path: Path, identity: IdentityAgent, llm=None, extra: list[dict] | None = None) -> list[Case]:
-    rows = read_csv(path) + list(extra or [])
+def load_cases(path: Path, identity: IdentityAgent, llm=None) -> list[Case]:
+    return cases_from_rows(read_csv(path), identity, llm)
+
+
+def cases_from_rows(rows: list[dict], identity: IdentityAgent, llm=None) -> list[Case]:
     cases = [Case(r["case_id"], r["email"], parse_ts(r["requested_at"]), r["reported_status"],
                   parse_ts(r["reported_at"]), parse_ts(r["audit_at"]), r["request_text"],
                   identity.resolve(r["email"], parse_ts(r["requested_at"])),
