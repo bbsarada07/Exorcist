@@ -1,0 +1,86 @@
+/* Fonts are bundled from node_modules by Vite: no CDN, works offline. Latin subsets only. */
+@import "@fontsource/instrument-serif/latin-400.css";
+@import "@fontsource/instrument-serif/latin-400-italic.css";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #07070b;
+  --bone: #ede9e0;
+  --panel: #0f0f16;
+  --line: #23232f;
+  --muted: #a9a5b8;
+  --proven: #7cffb2;
+  --haunted: #ff6b47;
+  --flow: #9b8dff;
+  --na: #8b8898;
+  color-scheme: dark;
+}
+
+html, body { background: var(--ink); color: var(--bone); }
+body { font-family: "Inter Variable", system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+::selection { background: rgba(124, 255, 178, 0.28); color: var(--bone); }
+:focus-visible { outline: 2px solid var(--proven); outline-offset: 2px; border-radius: 6px; }
+
+.display { font-family: "Instrument Serif", Georgia, serif; letter-spacing: -0.035em; line-height: 0.88; font-weight: 400; }
+.mono { font-family: "JetBrains Mono Variable", ui-monospace, monospace; font-feature-settings: "zero" 1; }
+
+/* hairline glass panels */
+.panel { background: rgba(15, 15, 22, 0.82); border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(10px); }
+.panel-solid { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.hairline { border-color: var(--line); }
+
+/* status chip: pill, 1px colored border, dot, mono label (status never conveyed by colour alone) */
+.chip { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.18rem 0.6rem; border-radius: 999px;
+        border: 1px solid currentColor; font-family: "JetBrains Mono Variable", monospace; font-size: 0.68rem;
+        letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; background: rgba(7, 7, 11, 0.6); }
+.chip::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: currentColor; box-shadow: 0 0 10px currentColor; }
+.tone-haunted { color: var(--haunted); }
+.tone-proven { color: var(--proven); }
+.tone-na { color: var(--na); }
+.tone-flow { color: var(--flow); }
+.tone-bone { color: var(--bone); }
+
+/* film grain + vignette: fixed overlays, animated with transform only */
+.grain { position: fixed; inset: -50%; z-index: 60; pointer-events: none; opacity: 0.07; mix-blend-mode: overlay;
+         background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1.4 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+         animation: grain 0.9s steps(6) infinite; will-change: transform; }
+@keyframes grain {
+  0% { transform: translate(0, 0); } 20% { transform: translate(-3%, 2%); } 40% { transform: translate(2%, -4%); }
+  60% { transform: translate(-4%, -1%); } 80% { transform: translate(3%, 3%); } 100% { transform: translate(0, 0); }
+}
+.vignette { position: fixed; inset: 0; z-index: 59; pointer-events: none;
+            background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.55) 100%); }
+
+/* glows */
+.glow-haunted { box-shadow: 0 0 0 1px rgba(255, 107, 71, 0.35), 0 0 32px -6px rgba(255, 107, 71, 0.45); }
+.glow-proven { box-shadow: 0 0 0 1px rgba(124, 255, 178, 0.35), 0 0 32px -6px rgba(124, 255, 178, 0.4); }
+.glow-flow { box-shadow: 0 0 0 1px rgba(155, 141, 255, 0.35), 0 0 32px -6px rgba(155, 141, 255, 0.45); }
+
+/* chromatic aberration glitch (Reported vs Reality) */
+.glitch { position: relative; display: inline-block; }
+.glitch::before, .glitch::after { content: attr(data-text); position: absolute; inset: 0; pointer-events: none; }
+.glitch::before { color: #ff2d6f; mix-blend-mode: screen; animation: glitchA 2.4s infinite steps(1); }
+.glitch::after { color: #2de2ff; mix-blend-mode: screen; animation: glitchB 2.1s infinite steps(1); }
+@keyframes glitchA { 0%, 100% { transform: translate(-2px, 0); opacity: 0.8; } 7% { transform: translate(4px, -1px); }
+                     9% { transform: translate(-6px, 2px); } 11% { transform: translate(-2px, 0); } 60% { transform: translate(-3px, 1px); } }
+@keyframes glitchB { 0%, 100% { transform: translate(2px, 0); opacity: 0.8; } 33% { transform: translate(-4px, 1px); }
+                     35% { transform: translate(5px, -2px); } 37% { transform: translate(2px, 0); } }
+
+.scanlines { background-image: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 3px); }
+
+/* Lite mode + reduced motion: keep every piece of information, drop decorative motion */
+.lite .grain, .lite .glitch::before, .lite .glitch::after { animation: none; }
+.lite .glitch::before, .lite .glitch::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  .glitch::before, .glitch::after { display: none; }
+}
+
+.kbd { font-family: "JetBrains Mono Variable", monospace; font-size: 0.66rem; padding: 0.05rem 0.38rem; border: 1px solid var(--line);
+       border-bottom-width: 2px; border-radius: 5px; color: var(--muted); background: rgba(15, 15, 22, 0.8); }
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: #2b2b38 transparent; }
