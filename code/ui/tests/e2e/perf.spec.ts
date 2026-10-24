@@ -41,7 +41,7 @@ test.describe("13 · performance", () => {
     });
   }
 
-  test("auto mode downgrades 0.5 → 0.35 → 0.25 when frames stay slow", async ({ page }) => {
+  test("auto mode steps 0.5 → 0.35 → 0.25 → CSS gradient when frames stay slow, then offers Lite", async ({ page }) => {
     await page.goto("/");
     await expect.poll(async () => (await fluidStats(page))?.frames ?? 0).toBeGreaterThan(20);
     const start = (await fluidStats(page))!;

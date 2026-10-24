@@ -92,8 +92,8 @@ held-out check covers tunable parameters only. Identifier-free resources are lin
 
 ## UI — "Exorcist" (code/ui)
 
-A cinematic, read-only front end over the engine's outputs (Vite + React + TypeScript + Tailwind, Framer Motion,
-GSAP, Lenis, Zustand). Fully offline: fonts are bundled, and the UI loads only the static JSON in
+A cinematic, read-only front end over the engine's outputs (Vite + React + TypeScript + Tailwind, raw WebGL, Framer
+Motion, GSAP, Lenis, Zustand). Fully offline: fonts are bundled, and the UI loads only the static JSON in
 `code/ui/public/data/` (committed), so it runs without Python.
 code/ui/public/data/ contains derived engine outputs (statuses, steps, evidence ids, scores, masked emails), not the dataset or its evidence files. `npm run test:privacy` enforces it.
 
@@ -103,19 +103,25 @@ npm install
 npm run dev            # http://localhost:5173
 npm run build          # type-check + production build to code/ui/dist (not committed, not zipped)
 npm run preview        # serve the production build
+npm test               # privacy scan + 56 Playwright end-to-end tests (builds and serves dist itself)
+npm run test:privacy   # scan public/data, src and dist/data for PII / dataset content
+npm run test:e2e       # e2e only; uses a locally installed Chrome/Edge (set CHROME_PATH), no browser download
 npm run export-data    # after re-running `python code/main.py`: code/out + output.csv -> public/data/*.json
-npm run shots          # optional: screenshots to code/docs/ui via a locally installed Chrome/Edge
+npm run shots          # optional: screenshots to code/docs/ui
 ```
 
-Screens (Tier 1): **The Summoning** (canvas particle hero, flashlight reveals masked identifiers, wordmark +
-real counters) · **The Graveyard** (518 tombstones, filters, `/` search, `j`/`k`/Enter, ledger view, `ctrl/cmd+K`
-palette over cases, systems and evidence ids) · **Case file** (shared-element zoom, request, review reasons,
-confidence, heuristic risk, runbook with "why this step exists" from `decision_trace.jsonl`) · **Reported vs
-Reality** (glitching legacy claim vs reconstructed truth and failure modes from `lie_report.json`) · **The
-Exorcism** (GSAP sequence generated from the case's remediation steps; proof view for COMPLETE cases). A visible
-**Lite mode** toggle (default on with `prefers-reduced-motion`) removes particles and effects but keeps every number.
-Details: `docs/UI_DATA_NOTES.md` (every field and its source), `docs/DESIGN_NOTES.md`, `docs/DEMO_SCRIPT.md`,
-`ui/src/effects/README.md`; screenshots in `docs/ui/`.
+Screens (Tier 1): **The Summoning** (particle hero, flashlight reveals masked identifiers, odometer counters) ·
+**The Graveyard** (518 frosted-glass tombstones, glow = findings, filters, `/` search over case ids, system names and
+evidence ids with a pinned result strip, `j`/`k`/Enter, ledger view, `ctrl/cmd+K` palette) · **Case file**
+(shared-element zoom, review reasons, confidence, heuristic risk, runbook with "why this step exists" from
+`decision_trace.jsonl`) · **Reported vs Reality** (legacy claim vs reconstructed truth from `lie_report.json`) · **The
+Exorcism** (GSAP sequence generated from the case's remediation steps, ending in the purge; proof view for COMPLETE
+cases). Behind everything runs an "ink in water" WebGL fluid whose ember/green/violet shares are the real haunted,
+proven and active-flow numbers. Top bar: **Perf** (Auto adapts resolution and falls back to a CSS gradient; High;
+Low) and **Lite mode** (default on with `prefers-reduced-motion`: no canvas, every number kept).
+Details: `docs/UI_DATA_NOTES.md` (every field and its source), `docs/DESIGN_NOTES.md` (decisions, data → fluid
+mapping, performance), `docs/UI_TEST_REPORT.md` (test results and measured fps), `docs/DEMO_SCRIPT.md`,
+`ui/src/effects/README.md`; screenshots in `docs/ui/` (before: `docs/ui/before/`).
 
 ## 60-second demo script
 
