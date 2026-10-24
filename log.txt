@@ -95,3 +95,25 @@ repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
 
+## [2026-10-24T14:52:37Z] Gate 3: documentation honesty additions and submission package
+
+User Prompt (verbatim, secrets redacted):
+Before the submission steps, make two documentation additions. In docs/INTERVIEW_NOTES.md and evaluation/evaluation_report.md, state plainly: (1) the 30-second-tick linking rule is a regularity learned from unlabeled worker logs, used only to link cases to identifier-free resources, re-learned each run, with every guessed link flagged in review_queue.json (41 account links and 16 analytics ties) and the confidence score reflecting it; (2) the held-out check covered tunable parameters only, and the structural rules were derived while inspecting the samples, so report the sample score as an upper bound, not a generalization estimate. Also list the 10 hand-built cases with no account step as a known risk. Then continue with the rest of the Gate 3 steps.
+[Pasted Gate 3 brief] 1. Regenerate output.csv from a clean full run and run the strict validator. 2. Write evaluation_report.md and usage_report.md from the real run (zeros if no LLM). 3. Write code/README.md and docs/INTERVIEW_NOTES.md (decisions, tradeoffs, failures, limits, judge Q&A). 4. Build code.zip from code/ only, excluding venvs, node_modules, build artifacts, caches, data/, dataset/, secrets; verify no keys. 5. Confirm log.txt is current and give its path. 6. Print the final checklist and say exactly what to upload.
+
+Agent Response Summary:
+Found that review_queue.json previously listed only below-threshold cases, so the requested statement would have been false; changed the queue to include every ambiguous chain link and every no-account case (64 cases: 41 ambiguous account links, 16 analytics ties, 10 no-account cases), sharing thresholds with the confidence score. Added the three plain statements to INTERVIEW_NOTES.md, evaluation_report.md (new section 1b, headline relabelled as an upper bound, 7b scope note) and README. Clean run with caches deleted reproduced output.csv byte-for-byte; validator, 6 unit tests and the zip secret scan pass.
+
+Actions:
+* Edited code/audit/sidecars.py (ambiguous_links, review queue rule), code/evaluation/report.py, code/docs/INTERVIEW_NOTES.md, code/README.md
+* rm -rf code/out code/cache output.csv code.zip; python code/main.py; python code/evaluation/report.py; python -m unittest discover -s code/tests; python code/tools/build_zip.py
+* git commit on branch deletion-audit-agent
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
+
