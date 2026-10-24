@@ -30,10 +30,17 @@ re-checked against the evaluation harness.
 10. A fact's time is its own observation time (log line timestamp, inner snapshot `captured_at`, `observed_at`),
     not the file's manifest time. Facts after `audit_at` are ignored.
 11. Citations only use files whose manifest `captured_at ≤ audit_at`.
-12. *Open:* absence-proof citation. When nothing observes the account any more, cite a pre-audit snapshot that
-    covers the account store. evidence_54 vs evidence_90 tie on case_04 (gold = 54) means the rule is not simply
-    "latest covering snapshot"; candidate tie-breakers to test: files that also hold the subject's other resources,
-    explicit primary+replica account snapshots.
+12. **Citation rule = latest pre-audit proof, explicit observations before snapshot omissions, files before
+    activity rows** (`planner.cite_latest_pre_audit`). Chosen empirically by `evaluation/citation_study.py`
+    (Decision 2), scoring every candidate rule on all 75 cited gold steps:
+    latest_pre_audit_explicit_first 72/75 (= every reachable step) · latest_pre_audit 67 ·
+    latest_file_manifest_time 67 · prefer_snapshot_types 66 · earliest_pre_audit 54 · nearest_reported_at 54 ·
+    first_after_delete_activity 54. No tie. The 3 misses are resources absent from all participant data.
+    The case_04 evidence_54-vs-evidence_90 question is moot: `account_004` occurs in no participant file.
+13. **No id-derivation convention** (Decision 3). Only the 8 handcrafted sample accounts follow
+    `account_00N ↔ user_0N`; the other 24 sample accounts and all 25 sample audit records have no arithmetic
+    relation to user or case number. Therefore `account_004`, `audit_record_6645`, `audit_record_5569`
+    stay unreachable (honest ceiling), nothing is hardcoded.
 
 ## Identity
 13. Normalise emails with `strip().lower()`; hash = sha256 of the normalised email.

@@ -33,7 +33,8 @@ ACCOUNT_WINDOW_AFTER_H = 3.0     # handcrafted chains put the delete up to ~0.1 
 ACCOUNT_EXPECTED_OFFSET_H = -1.0
 ACTION_WINDOW_H = (-0.75, 2.5)   # compliant actions -0.5..-0.1 h, failed/claimed attempts +0.6..+2 h
 DUMMY_COST = 4.0
-OCR_TOLERANCE = 2                # max edit distance treated as an OCR misread (decoys differ by >= 3)
+CONTESTED_SOLE_EVIDENCE_FAILSAFE = True  # see CONVENTIONS.md #15
+OCR_TOLERANCE = 2               # max edit distance treated as an OCR misread (decoys differ by >= 3)
 COOCCURRENCE_BONUS = 0.5        # candidate appears in the same evidence file as the case's linked records
 
 
@@ -133,18 +134,27 @@ class LinkerAgent:
                 for f in self.ev.by_resource[rid]:
                     if k in f.keys and self._in_scope(case, f.observed_at):
                         hits[rid].append(f)
+        contested = {}
         for rid, fs in hits.items():
             content = [f for f in fs if f.kind != "link"]
             if not content:
                 foreign = self._foreign_content(rid, keys, case)
                 if foreign:  # catalog says ours, record content says someone else -> trust content
+                    contested[rid] = fs
                     links.conflicts.append({
                         "type": "catalog_vs_content", "resource_id": rid,
-                        "claim": {"evidence": [f.evidence_id for f in fs], "says": "linked to subject"},
+                        "claim": {"evidence": sorted({f.evidence_id for f in fs}), "says": "linked to subject"},
                         "content": {"evidence": [e for e, _ in foreign], "identifiers": foreign[0][1]},
                         "trusted": "content", "why": "record content identifies a different person"})
                     continue
             links.resources[rid] = Link(rid, "evidence", None, tuple(sorted({f.evidence_id for f in fs})))
+        if contested and not links.resources and CONTESTED_SOLE_EVIDENCE_FAILSAFE:
+            # fail-safe: never certify a deletion from zero evidence; keep the contested record in scope
+            for rid, fs in contested.items():
+                links.resources[rid] = Link(rid, "evidence_contested", None, tuple(sorted({f.evidence_id for f in fs})))
+            for c in links.conflicts:
+                if c["resource_id"] in contested:
+                    c["trusted"] = "catalog (fail-safe: contested record is the subject's only evidence)"
         # near-miss decoys seen while searching (kept as explicit rejections)
         emails = subject.emails()
         for key, rids in self.ev.by_key.items():

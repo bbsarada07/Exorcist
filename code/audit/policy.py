@@ -87,11 +87,11 @@ class PolicyAgent:
         return rule.rule_id, rule.action
 
     def assess(self, state: ResourceState, audit_at: datetime, worker_events: list[Activity],
-               exclusive_link: bool = False, name_exposed: bool = False) -> Assessment:
+               exclusive_link: bool = False) -> Assessment:
         category, source = self.category(state, worker_events, exclusive_link)
         rule_id, action = self._action(category, audit_at, state.attrs)
         finding, remediation, verification = ACTION_OF[action]
-        exposed = set(state.exposed) | ({"name"} if name_exposed and state.exists else set())
+        exposed = set(state.exposed)
         status, reason = "unknown", ""
         if action == "DELETE":
             status, reason = ("violation", "record still exists") if state.exists else \
@@ -111,6 +111,8 @@ class PolicyAgent:
                 status, reason = "violation", "restore path open"
             elif allowed is False:
                 status, reason = "compliant", "restore blocked"
+            elif state.exists:  # archive present and nothing shows restore access was blocked
+                status, reason = "violation", "archive present, restore not blocked"
         elif action == "DISABLE":
             enabled = state.attrs.get("enabled")
             if enabled is True:
@@ -135,7 +137,8 @@ class PolicyAgent:
             elif action == "RETAIN":
                 ok = o.exists is True
             elif action == "BLOCK":
-                ok = o.attrs.get("restore_allowed") is (status == "violation")
+                allowed = o.attrs.get("restore_allowed")
+                ok = (allowed is True or (allowed is None and o.exists is True)) if status == "violation" else allowed is False
             elif action == "DISABLE":
                 ok = o.attrs.get("enabled") is (status == "violation")
             else:

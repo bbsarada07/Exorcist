@@ -57,28 +57,21 @@ class AuditEngine:
         assign_scopes(cases)
         return cases
 
-    def _name_exposed(self, rid: str, case: Case) -> bool:
-        names = self.identity.subjects[case.user_id].names()
-        for f in self.ev.by_resource.get(rid, []):
-            text = f.attrs.get("text", "")
-            if text and f.observed_at <= case.audit_at and any(n in text for n in names):
-                return True
-        return False
-
     def _exclusive(self, rid: str, case: Case) -> bool:
         return any(f.kind == "link" and f.attrs.get("exclusive") and f.observed_at <= case.audit_at
                    for f in self.ev.by_resource.get(rid, []))
 
     def assess_case(self, case: Case, links: CaseLinks) -> list[Assessment]:
         out = []
+        names = frozenset(self.identity.subjects[case.user_id].names())
+        case_files = frozenset(self.linker.case_files.get(case.case_id, ()))
         for rid in sorted(links.resources):
             system = system_of(rid)
             if system is None:
                 continue
-            state = self.timeline.state(rid, system, case.audit_at)
+            state = self.timeline.state(rid, system, case.audit_at, names, case_files)
             workers = [a for a in self.worker_by_resource.get(rid, []) if a.event_time <= case.audit_at]
-            out.append(self.policy.assess(state, case.audit_at, workers, self._exclusive(rid, case),
-                                          self._name_exposed(rid, case)))
+            out.append(self.policy.assess(state, case.audit_at, workers, self._exclusive(rid, case)))
         return out
 
     def run(self, extra_rows: list[dict] | None = None) -> dict[str, CaseResult]:

@@ -58,7 +58,8 @@ class TimelineAgent:
                 for rid in a.mentions:
                     self.repopulated.setdefault(rid, []).append(a)
 
-    def observations(self, rid: str, system: str, until: datetime) -> list[Observation]:
+    def observations(self, rid: str, system: str, until: datetime, names: frozenset = frozenset(),
+                     case_files: frozenset = frozenset()) -> list[Observation]:
         grouped: dict[tuple, list[Fact]] = {}
         for f in self.ev.by_resource.get(rid, []):
             if f.kind == "link" or f.observed_at > until:
@@ -73,8 +74,10 @@ class TimelineAgent:
             for f in fs:
                 attrs.update({k: v for k, v in f.attrs.items() if k != "text"})
             exists = True if present else (False if absent else None)
-            obs.append(Observation(eid, t, fs[0].cite_at, exists,
-                                   frozenset().union(*(f.exposed for f in present)) if present else frozenset(),
+            exposed = frozenset().union(*(f.exposed for f in present)) if present else frozenset()
+            if names and any(n in f.attrs.get("text", "") for f in present for n in names):
+                exposed |= {"name"}  # documents/screens that print the subject's name
+            obs.append(Observation(eid, t, fs[0].cite_at, exists, exposed,
                                    attrs, tuple(sorted({f.location for f in present})),
                                    next((f.category for f in fs if f.category), None), fs[0].source,
                                    tuple(sorted({f.location for f in absent}))))
@@ -94,7 +97,9 @@ class TimelineAgent:
                         o.absent_locations = tuple(sorted(set(o.absent_locations) | set(missing)))
                 continue
             if len(missing) == len(covs):
-                obs.append(Observation(key[0], key[1], covs[0].cite_at, False, source="coverage",
+                # omission from a snapshot that holds this case's other records is a deliberate absence
+                src = "coverage_case_file" if key[0] in case_files else "coverage"
+                obs.append(Observation(key[0], key[1], covs[0].cite_at, False, source=src,
                                        absent_locations=missing))
         for a in self.repopulated.get(rid, []):
             if a.event_time <= until:
@@ -103,8 +108,9 @@ class TimelineAgent:
         obs.sort(key=lambda o: (o.observed_at, o.exists is True, o.evidence_id))
         return obs
 
-    def state(self, rid: str, system: str, until: datetime) -> ResourceState:
-        obs = self.observations(rid, system, until)
+    def state(self, rid: str, system: str, until: datetime, names: frozenset = frozenset(),
+              case_files: frozenset = frozenset()) -> ResourceState:
+        obs = self.observations(rid, system, until, names, case_files)
         exists, exposed, attrs, category = None, frozenset(), {}, None
         explicit = [o for o in obs if o.source != "coverage"]
         # snapshots list only the records relevant to them, so omission is weak: it decides existence
