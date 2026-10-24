@@ -70,7 +70,7 @@ export function CommandPalette({ summary }: { summary: Summary | null }) {
             initial={{ y: -12, scale: 0.98 }} animate={{ y: 0, scale: 1 }} exit={{ y: -8, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
               <span className="mono text-xs text-proven">⌘K</span>
-              <input ref={input} value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }}
+              <input ref={input} autoFocus value={q} onChange={(e) => { setQ(e.target.value); setSel(0); }}
                 onKeyDown={(e) => {
                   if (e.key === "ArrowDown") { e.preventDefault(); setSel((x) => Math.min(items.length - 1, x + 1)); }
                   if (e.key === "ArrowUp") { e.preventDefault(); setSel((x) => Math.max(0, x - 1)); }

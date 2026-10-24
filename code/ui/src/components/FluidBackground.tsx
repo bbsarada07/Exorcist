@@ -24,6 +24,7 @@ export function FluidBackground() {
       try {
         const r = new FluidRenderer(canvas.current, useUI.getState().perf, deviceBudget().tier === "low");
         renderer.current = r;
+        r.onGiveUp = () => { setFluidKind("css"); useUI.getState().setSlow(true); };
         setFluidKind("webgl");
         window.__exorcist = { ...(window.__exorcist ?? {}),
           fluid: Object.assign(r.stats, { target: fluid.target, simulateLoad: (ms: number) => r.setLoad(ms) }) };
@@ -56,7 +57,13 @@ export function FluidBackground() {
     };
   }, [useGL, setFluidKind]);
 
-  useEffect(() => { renderer.current?.applyMode(perf, deviceBudget().tier === "low"); }, [perf]);
+  useEffect(() => {
+    const r = renderer.current;
+    if (!r) return;
+    r.applyMode(perf, deviceBudget().tier === "low");
+    // an explicit High/Low choice brings the shader back after Auto handed over to the CSS gradient
+    if (perf !== "auto" && useUI.getState().fluidKind === "css") { r.start(); setFluidKind("webgl"); }
+  }, [perf, setFluidKind]);
 
   useEffect(() => { document.documentElement.dataset.fluid = fluidKind; }, [fluidKind]);
 
@@ -65,7 +72,8 @@ export function FluidBackground() {
       <div className="fluid-css absolute inset-0" style={{ opacity: fluidKind === "css" ? 1 : 0 }}>
         <div className="fluid-css-a" /><div className="fluid-css-b" />
       </div>
-      {useGL && <canvas ref={canvas} data-fluid-canvas className="absolute inset-0 h-full w-full" style={{ imageRendering: "auto" }} />}
+      {useGL && <canvas ref={canvas} data-fluid-canvas className="absolute inset-0 h-full w-full"
+                        style={{ imageRendering: "auto", visibility: fluidKind === "webgl" ? "visible" : "hidden" }} />}
     </div>
   );
 }

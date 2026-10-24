@@ -49,7 +49,8 @@ export class GhostField {
       return { text, x: ((gx + 0.25 + 0.5 * ((i * 0.618034) % 1)) / 7) * this.w,
                y: ((gy + 0.2 + 0.6 * ((i * 0.381966) % 1)) / 4) * this.h, v: 0.003 + (i % 5) * 0.0015 };
     });
-    this.io = new IntersectionObserver(([e]) => { this.visible = e.isIntersecting; this.toggle(); });
+    // threshold > 0: an edge-adjacent (zero-area) hero would otherwise count as visible and keep animating
+    this.io = new IntersectionObserver(([e]) => { this.visible = e.isIntersecting && e.intersectionRatio > 0.01; this.toggle(); }, { threshold: [0, 0.02, 0.1] });
     this.io.observe(canvas);
     this.toggle();
   }

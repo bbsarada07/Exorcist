@@ -264,16 +264,18 @@ export function Exorcism({ d }: { d: CaseDetail }) {
           </ol>
         </div>
 
-        {!lite && <canvas ref={dustCanvas} aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />}
-        <div aria-hidden className="pointer-events-none absolute inset-0 grid place-items-center">
-          <div data-pulse className="absolute h-64 w-64 rounded-full border-2 border-proven" style={{ opacity: 0 }} />
-          <div data-final style={{ opacity: 0 }} className="grid h-44 w-44 place-items-center rounded-full border-[3px] border-proven bg-ink/80 text-center text-proven shadow-[0_0_60px_-4px_rgba(124,255,178,.7)]">
+        {/* the seal lands in its own slot below the checks, so the end state never covers a check */}
+        <div aria-hidden className="pointer-events-none relative mt-6 grid h-44 place-items-center">
+          <div className="absolute h-40 w-40 rounded-full border border-dashed border-line" />
+          <div data-pulse className="absolute h-56 w-56 rounded-full border-2 border-proven" style={{ opacity: 0 }} />
+          <div data-final style={{ opacity: 0 }} className="relative grid h-40 w-40 place-items-center rounded-full border-[3px] border-proven bg-ink/80 text-center text-proven shadow-[0_0_60px_-4px_rgba(124,255,178,.7)]">
             <span className="flex flex-col items-center gap-2">
               <span className="display text-4xl italic leading-none">Exorcised</span>
               <span className="mono text-xs uppercase tracking-[0.22em]">plan proven by<br />simulation</span>
             </span>
           </div>
         </div>
+        {!lite && <canvas ref={dustCanvas} aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" />}
       </div>
       <p className="mono mt-3 text-xs text-muted">
         A visualisation of the plan in output.csv applied to the reconstructed state. Nothing in any system is changed.
@@ -316,7 +318,7 @@ function TargetCard({ x }: { x: Target }) {
           </div>
         ))}
         {x.op === "DELETE_RECORD" && [0.9, 0.7, 0.8].map((w, i) => <div key={i} className="h-1.5 rounded bg-haunted/40" style={{ width: `${w * 100}%` }} />)}
-        {x.op === "BLOCK_RESTORE" && <p className="mono text-xs text-muted">restore path open · archive retained by policy</p>}
+        {x.op === "BLOCK_RESTORE" && <p className="mono pr-20 text-xs text-muted">restore path open · archive retained by policy</p>}
         {flow && <p className="mono text-xs text-flow">sync can recreate the subject's data</p>}
       </div>
       {x.op === "BLOCK_RESTORE" && (

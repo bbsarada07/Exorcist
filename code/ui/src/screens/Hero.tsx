@@ -94,23 +94,23 @@ export function Hero({ summary }: { summary: Summary | null }) {
       )}
 
       {summoned && (
-        <div className="absolute inset-x-0 top-[55%] flex justify-center px-4">
-          <div className="panel-strong w-full max-w-5xl px-6 py-6 text-center md:px-10" data-hero-panel>
-            <h2 className="display text-4xl text-bone md:text-6xl" aria-label={HEADLINE} data-headline>
+        <div className="absolute inset-x-0 bottom-20 flex justify-center px-4">
+          <div className="panel-strong w-full max-w-5xl px-6 py-6 text-center md:px-10 [@media(max-height:820px)]:py-4" data-hero-panel>
+            <h2 className="display text-4xl text-bone md:text-6xl [@media(max-height:820px)]:md:text-5xl" aria-label={HEADLINE} data-headline>
               <span className={`line-mask ${wordmarkDone ? "in" : ""}`} aria-hidden><span>Deleted data does not stay <em className="text-haunted">dead</em></span></span>
               <span className={`line-mask ${wordmarkDone ? "in" : ""}`} aria-hidden><span style={{ transitionDelay: "180ms" }}>unless you <em className="text-proven">prove</em> it.</span></span>
             </h2>
-            <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-5">
+            <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-5 [@media(max-height:820px)]:mt-4">
               {counters.map((c) => (
                 <div key={c.key} className="flex flex-col items-center" data-counter={c.key}>
-                  <span className={`display text-5xl md:text-6xl ${c.tone} ${c.beat && !lite ? "heartbeat" : ""}`}>
+                  <span className={`display text-5xl md:text-6xl [@media(max-height:820px)]:md:text-5xl ${c.tone} ${c.beat && !lite ? "heartbeat" : ""}`}>
                     <Odometer value={c.value} run={wordmarkDone} label={c.label} />
                   </span>
                   <span className="micro mt-1 !tracking-[0.16em]">{c.label}</span>
                 </div>
               ))}
               <div className="col-span-2 flex flex-col items-center md:col-span-1" data-counter="lie">
-                <span className="display text-5xl italic text-haunted md:text-6xl">
+                <span className="display text-5xl italic text-haunted md:text-6xl [@media(max-height:820px)]:md:text-5xl">
                   <Odometer value={lie?.reported_COMPLETE_but_incomplete_pct ?? 0} decimals={1} suffix="%" run={wordmarkDone} label="of legacy complete claims were false" />
                 </span>
                 <span className="micro mt-1 !tracking-[0.16em]">legacy “complete” claims false</span>

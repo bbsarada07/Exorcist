@@ -206,16 +206,20 @@ function RealityRift({ d }: { d: Detail }) {
 function StepLine({ s, i, active, onClick }: { s: StepRow; i: number; active: boolean; onClick: () => void }) {
   const [phase, op, system, resource, state, ev] = s;
   return (
-    <button onClick={onClick} aria-pressed={active}
-      className={`grid w-full grid-cols-[2rem_1fr_auto] items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${active ? "bg-white/[0.07]" : "hover:bg-white/[0.035]"}`}>
+    <button onClick={onClick} aria-pressed={active} data-step={i + 1} data-phase={phase} data-op={op} data-ev={ev}
+      className={`grid w-full grid-cols-[2rem_1fr] items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${active ? "bg-white/[0.07]" : "hover:bg-white/[0.035]"}`}>
       <span className="mono pt-0.5 text-xs text-muted">{String(i + 1).padStart(2, "0")}</span>
       <span className="min-w-0">
-        <span className="block text-sm text-bone">{OP_VERB[op] ?? op}</span>
-        <span className="mono block truncate text-xs text-muted">{op}</span>
-        <span className="mono block truncate text-[12px] text-bone/90">{system} / {resource}</span>
-        <span className="mono block text-xs text-muted">evidence · {ev || (phase === "FINDING" ? "—" : "future work (\"\")")}</span>
+        <span className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="text-sm text-bone">{OP_VERB[op] ?? op}</span>
+          {/* findings show the problem state; planned and verified states are the target, so they read as good */}
+          <span className={`chip tone-${phase === "FINDING" ? STATE_TONE[state] ?? "bone" : "proven"}`}>{state}</span>
+        </span>
+        <span className="mono block truncate text-xs text-muted" title={op}>{op}</span>
+        <span className="mono block truncate text-[12px] text-bone" title={resource}>{resource}</span>
+        <span className="mono block truncate text-xs text-muted" title={system}>{system}</span>
+        <span className="mono block truncate text-xs text-muted">evidence · {ev || (phase === "FINDING" ? "—" : "future work (\"\")")}</span>
       </span>
-      <span className={`chip tone-${STATE_TONE[state] ?? "bone"}`}>{state}</span>
     </button>
   );
 }
@@ -279,7 +283,7 @@ function ProofView({ d }: { d: Detail }) {
       </div>
       <ol className="mt-8 space-y-2">
         {ver.map(([s, i], k) => (
-          <motion.li key={i} initial={{ opacity: lite ? 1 : 0, x: lite ? 0 : -10 }} animate={seen ? { opacity: 1, x: 0 } : {}}
+          <motion.li key={i} data-proof-step={i + 1} data-ev={s[5]} initial={{ opacity: lite ? 1 : 0, x: lite ? 0 : -10 }} animate={seen ? { opacity: 1, x: 0 } : {}}
             transition={{ delay: lite ? 0 : 0.15 * k, duration: 0.45 }}
             className="grid grid-cols-[1.5rem_1fr_auto] items-center gap-3 rounded-lg border border-line bg-ink/40 px-4 py-3">
             <span className="text-proven" aria-label="passed">✓</span>

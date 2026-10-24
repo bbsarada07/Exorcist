@@ -17,6 +17,8 @@ interface UIState {
   originRect: { x: number; y: number; w: number; h: number } | null; // tombstone rect for the shared-element zoom
   perf: PerfMode;              // fluid/particle quality: auto (adaptive) | high | low
   fluidKind: "webgl" | "css";  // which background is actually running
+  slow: boolean;               // auto mode gave up the shader: the device is struggling, offer Lite
+  setSlow: (v: boolean) => void;
   setPerf: (p: PerfMode) => void;
   setFluidKind: (k: "webgl" | "css") => void;
   setLite: (v: boolean) => void;
@@ -59,6 +61,8 @@ export const useUI = create<UIState>((set) => ({
   originRect: null,
   perf: storedPerf,
   fluidKind: "css",
+  slow: false,
+  setSlow: (slow) => set({ slow }),
   setPerf: (perf) => { try { localStorage.setItem("exorcist.perf", perf); } catch { /* storage unavailable */ } set({ perf }); },
   setFluidKind: (fluidKind) => set({ fluidKind }),
   setLite: (lite) => {

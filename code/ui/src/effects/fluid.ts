@@ -77,7 +77,7 @@ const SCALES = [0.5, 0.35, 0.25];
 
 export interface FluidStats {
   ok: boolean; scale: number; octaves: number; frames: number; emaMs: number; mode: PerfMode;
-  downgrades: { at: number; from: number; to: number; emaMs: number }[];
+  downgrades: { at: number; from: number; to: number; emaMs: number }[];   // to = 0: handed over to the CSS gradient
   uniforms: { ratio: number; violet: number; purge: number };
 }
 
@@ -93,6 +93,7 @@ export class FluidRenderer {
   private load = 0;                 // test hook: artificial ms of work per frame
   private cur = { ratio: fluid.target.ratio, violet: fluid.target.violet, bright: 0 };
   stats: FluidStats;
+  onGiveUp: (() => void) | null = null;   // auto mode, still slow at the lowest scale: the page switches to the CSS gradient
 
   constructor(private canvas: HTMLCanvasElement, private mode: PerfMode, lowTier: boolean) {
     const gl = canvas.getContext("webgl", { antialias: false, depth: false, stencil: false, alpha: false, preserveDrawingBuffer: true,
@@ -156,8 +157,17 @@ export class FluidRenderer {
 
     // auto mode: downgrade the render scale when the frame time stays bad
     this.ema = this.ema * 0.92 + frameDt * 0.08;
-    // time-based: ~0.75 s of sustained frame time above 24 ms (< ~42 fps) steps the scale down one notch
-    if (this.mode === "auto" && this.scaleIdx < SCALES.length - 1) {
+    // time-based: ~0.75 s of sustained frame time above 24 ms (< ~42 fps) steps the scale down one notch;
+    // at the lowest scale, ~2.5 s more above 28 ms (< ~36 fps) gives up WebGL for the CSS gradient
+    if (this.mode === "auto" && this.scaleIdx === SCALES.length - 1) {
+      this.slow = this.ema > 28 ? this.slow + frameDt : Math.max(0, this.slow - frameDt * 2);
+      if (this.slow > 2500) {
+        this.stats.downgrades.push({ at: Math.round(t), from: SCALES[this.scaleIdx], to: 0, emaMs: +this.ema.toFixed(1) });
+        this.stop();
+        this.onGiveUp?.();
+        return;
+      }
+    } else if (this.mode === "auto") {
       this.slow = this.ema > 24 ? this.slow + frameDt : Math.max(0, this.slow - frameDt * 2);
       if (this.slow > 750) {
         const from = SCALES[this.scaleIdx];

@@ -23,6 +23,19 @@ export function LiteToggle() {
   );
 }
 
+/** Shown only after Auto had to give up the shader: the device is struggling, so offer Lite (never switched silently). */
+function SlowHint() {
+  const show = useUI((s) => s.slow && !s.lite);
+  const setLite = useUI((s) => s.setLite);
+  if (!show) return null;
+  return (
+    <button onClick={() => setLite(true)} data-slow-hint className="chip tone-flow" aria-live="polite"
+      title="The fluid already fell back to a static gradient; Lite mode also stops particles and motion">
+      running slow · try lite
+    </button>
+  );
+}
+
 function PerfControl() {
   const perf = useUI((s) => s.perf);
   const setPerf = useUI((s) => s.setPerf);
@@ -44,7 +57,8 @@ export function TopBar() {
   const open = useUI((s) => s.open);
   const setPalette = useUI((s) => s.setPalette);
   return (
-    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between bg-gradient-to-b from-ink via-ink/80 to-transparent px-5 pb-8 pt-4 md:px-8">
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-center justify-between px-5 pb-7 pt-4 md:px-8"
+      style={{ background: "linear-gradient(to bottom, rgba(7,7,11,.97) 0%, rgba(7,7,11,.92) 62%, rgba(7,7,11,0) 100%)" }}>
       <button onClick={() => { open(null); window.scrollTo({ top: 0 }); }} className="pointer-events-auto flex items-baseline gap-3" aria-label="Exorcist home">
         <span className="display text-3xl italic text-bone">Exorcist</span>
         <span className="micro hidden sm:inline">deletion audit</span>
@@ -54,6 +68,7 @@ export function TopBar() {
         <Magnetic onClick={() => setPalette(true)} className="chip tone-bone hidden sm:inline-flex" aria-label="Open command palette (ctrl K)">
           search · ctrl K
         </Magnetic>
+        <SlowHint />
         <LiteToggle />
       </div>
     </header>

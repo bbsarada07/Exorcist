@@ -5,6 +5,7 @@ import { useUI } from "../lib/store";
 import { REPORTED_LABEL, STATUS_LABEL, STATUS_TONE, verdictLabel } from "../lib/labels";
 import { StatusChip } from "../components/Chips";
 import { scrollToCenter } from "../lib/scroll";
+import { subscribe } from "../effects/ticker";
 
 const STONE_W = 30, GAP = 10;
 const GLYPH: Record<Status, string> = { INCOMPLETE: "!", COMPLETE: "✓", NOT_APPLICABLE: "–" };
@@ -44,7 +45,9 @@ export function Graveyard({ summary }: { summary: Summary | null }) {
         setCursor(next);
         document.querySelector<HTMLElement>(`[data-case="${filtered[next]?.id}"]`)?.focus({ preventScroll: false });
       }
-      if (e.key === "Enter" && current && document.activeElement?.getAttribute("data-case") == null &&
+      // Enter opens the cursor's case only once the graveyard is on screen (on the hero, Enter summons)
+      const inView = (document.getElementById("graveyard")?.getBoundingClientRect().top ?? 1e9) < innerHeight * 0.6;
+      if (e.key === "Enter" && inView && current && document.activeElement?.getAttribute("data-case") == null &&
           document.activeElement?.tagName !== "BUTTON" && document.activeElement?.tagName !== "A") openCase(current.id);
     };
     window.addEventListener("keydown", onKey);
@@ -141,7 +144,7 @@ function ResultStrip({ filtered, total, searching, query, onClear, onOpen }: { f
     </button>
   );
   return (
-    <div className="panel mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3" aria-live="polite" data-result-strip>
+    <div className="panel-strong sticky top-[76px] z-30 mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3" aria-live="polite" data-result-strip>
       <span className="mono shrink-0 whitespace-nowrap text-sm text-bone" data-count>{filtered.length} of {total} shown</span>
       <span className="mono min-w-0 flex-1 text-sm" data-strip-text>{message}</span>
       {searching && (
@@ -158,12 +161,58 @@ function StoneGrid({ cases, visible, searching, few, currentId, onOpen }: { case
   const light = useRef<HTMLDivElement>(null);
   const els = useRef<(HTMLButtonElement | null)[]>([]);
   const [cols, setCols] = useState(30);
-  const [tip, setTip] = useState<{ c: CaseSummary; x: number; y: number } | null>(null);
+  const showTip = useRef<(t: TipAt | null) => void>(() => {});   // the tooltip owns its state: hovering re-renders it, not every stone
   const [live, setLive] = useState(false);
   const [waved, setWaved] = useState(false);
   const lit = useRef<number[]>([]);
   const lite = useUI((s) => s.lite);
   const maxF = useMemo(() => Math.max(1, ...cases.map((c) => c.f)), [cases]);
+  const glow = useRef<HTMLCanvasElement>(null);
+  const filter = useRef({ visible, searching });
+  filter.current = { visible, searching };
+
+  // Breathing glow of the high-finding pebbles: one canvas, one cached sprite, drawn on the shared ticker at ~30 fps
+  // while the grid is on screen. (Hundreds of per-stone CSS animations cost ~10x more main-thread time.)
+  useEffect(() => {
+    const cv = glow.current;
+    if (lite || !live || !cv) return;
+    const g = cv.getContext("2d");
+    if (!g) return;
+    const S = 48, sprite = document.createElement("canvas");
+    sprite.width = sprite.height = S;
+    const sg = sprite.getContext("2d")!, grd = sg.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grd.addColorStop(0, "rgba(255,120,80,.75)"); grd.addColorStop(0.45, "rgba(255,107,71,.28)"); grd.addColorStop(1, "rgba(255,107,71,0)");
+    sg.fillStyle = grd; sg.fillRect(0, 0, S, S);
+    const hotMin = Math.max(2, Math.ceil(maxF * 0.5));
+    let pts: { id: string; x: number; y: number; k: number; ph: number }[] = [];
+    const layout = () => {
+      cv.width = cv.clientWidth; cv.height = cv.clientHeight;
+      pts = cases.flatMap((c, i) => {
+        const el = els.current[i];
+        return el && c.s === "INCOMPLETE" && c.f >= hotMin ? [{ id: c.id, x: el.offsetLeft + STONE_W / 2, y: el.offsetTop + 19, k: c.f / maxF, ph: (i % 11) * 0.57 }] : [];
+      });
+    };
+    layout();
+    const ro = new ResizeObserver(layout);
+    ro.observe(cv);
+    let acc = 99;
+    const unsub = subscribe((dt, t) => {
+      acc += dt;
+      if (acc < 32) return;
+      acc = 0;
+      const { visible: vis, searching: srch } = filter.current;
+      g.clearRect(0, 0, cv.width, cv.height);
+      g.globalCompositeOperation = "lighter";
+      for (const p of pts) {
+        if (srch && !vis.has(p.id)) continue;
+        const b = 0.5 + 0.5 * Math.sin((t / 2600) * Math.PI * 2 + p.ph);       // 2.6 s breath
+        const r = 20 + p.k * 14 + b * 5;
+        g.globalAlpha = (0.35 + 0.65 * p.k) * (0.45 + 0.55 * b);
+        g.drawImage(sprite, p.x - r, p.y - r, r * 2, r * 2);
+      }
+    });
+    return () => { unsub(); ro.disconnect(); g.clearRect(0, 0, cv.width, cv.height); };
+  }, [lite, live, cases, maxF, cols]);
 
   useLayoutEffect(() => {
     if (!wrap.current) return;
@@ -203,11 +252,12 @@ function StoneGrid({ cases, visible, searching, few, currentId, onOpen }: { case
         if (tilt.current) tilt.current.style.transform = `rotateX(${(-y * 3).toFixed(2)}deg) rotateY(${(x * 4).toFixed(2)}deg)`;
         if (light.current) light.current.style.transform = `translate(${e.clientX - r.left - 260}px, ${e.clientY - r.top - 260}px)`;
       }}
-      onPointerLeave={() => { ripple(null); setTip(null); if (tilt.current) tilt.current.style.transform = ""; if (light.current) light.current.style.transform = "translate(-9999px,0)"; }}>
+      onPointerLeave={() => { ripple(null); showTip.current(null); if (tilt.current) tilt.current.style.transform = ""; if (light.current) light.current.style.transform = "translate(-9999px,0)"; }}>
       {!lite && <div ref={light} aria-hidden className="pointer-events-none absolute left-0 top-0 h-[520px] w-[520px] rounded-full opacity-60 mix-blend-screen"
                      style={{ transform: "translate(-9999px,0)", background: "radial-gradient(circle, rgba(237,233,224,.10), transparent 60%)" }} />}
       <div ref={tilt} className={`relative transition-transform duration-300 ease-out ${searching ? "searching" : ""} ${few ? "few" : ""} ${live && !lite ? "live" : ""} ${waved && !lite ? "wave-in" : ""}`}
            data-searching={searching ? 1 : 0}>
+        {!lite && <canvas ref={glow} aria-hidden data-glow className="pointer-events-none absolute inset-0 h-full w-full" />}
         <div className="grid" style={{ gridTemplateColumns: `repeat(${cols}, ${STONE_W}px)`, gap: `${GAP + 6}px ${GAP}px`, justifyContent: "space-between" }}>
           {cases.map((c, i) => {
             const match = visible.has(c.id);
@@ -224,12 +274,12 @@ function StoneGrid({ cases, visible, searching, few, currentId, onOpen }: { case
                 data-hot={c.f >= Math.max(2, Math.ceil(maxF * 0.5)) ? 1 : 0}
                 data-cursor={currentId === c.id ? 1 : 0}
                 tabIndex={match ? 0 : -1}
-                style={{ ["--g" as string]: (c.f / maxF).toFixed(3), ["--d" as string]: `${(i % 11) * -0.5}s`,
+                style={{ ["--g" as string]: (c.f / maxF).toFixed(3),
                          ["--w" as string]: `${Math.min(900, (Math.floor(i / cols) + (i % cols)) * 14)}ms` }}
                 className="stone"
                 aria-label={`${c.id}: ${STATUS_LABEL[c.s]} (${c.s}), ${c.f} findings, claimed ${REPORTED_LABEL[c.r] ?? c.r}${c.q ? ", needs review" : ""}`}
-                onPointerEnter={(e) => { ripple(i); const el = e.currentTarget; setTip({ c, x: el.offsetLeft + STONE_W / 2, y: el.offsetTop }); }}
-                onFocus={(e) => { const el = e.currentTarget; setTip({ c, x: el.offsetLeft + STONE_W / 2, y: el.offsetTop }); }}
+                onPointerEnter={(e) => { ripple(i); const el = e.currentTarget; showTip.current({ c, x: el.offsetLeft + STONE_W / 2, y: el.offsetTop }); }}
+                onFocus={(e) => { const el = e.currentTarget; showTip.current({ c, x: el.offsetLeft + STONE_W / 2, y: el.offsetTop }); }}
                 onClick={(e) => onOpen(c.id, e.currentTarget.getBoundingClientRect())}
               >
                 <span className="halo" aria-hidden />
@@ -239,28 +289,38 @@ function StoneGrid({ cases, visible, searching, few, currentId, onOpen }: { case
             );
           })}
         </div>
-        <AnimatePresence>
-          {tip && (
-            <motion.div key="tip" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-              className="panel-strong pointer-events-none absolute z-20 w-64 p-3" role="tooltip"
-              style={{ left: Math.min(Math.max(tip.x - 128, 0), (tilt.current?.clientWidth ?? 600) - 256), top: Math.max(0, tip.y - 158) }}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="mono text-sm text-bone">{tip.c.id}</span>
-                <StatusChip status={tip.c.s} />
-              </div>
-              <dl className="mono mt-2 grid grid-cols-2 gap-y-1 text-xs">
-                <dt className="text-muted">claimed</dt><dd className="text-bone">{REPORTED_LABEL[tip.c.r] ?? tip.c.r}</dd>
-                <dt className="text-muted">findings</dt><dd className="text-bone">{tip.c.f}</dd>
-                <dt className="text-muted">steps</dt><dd className="text-bone">{tip.c.n}</dd>
-                <dt className="text-muted">confidence</dt><dd className="text-bone">{tip.c.c?.toFixed(2) ?? "—"}</dd>
-              </dl>
-              <p className="mt-2 text-xs leading-snug text-muted">{verdictLabel(tip.c.v)}</p>
-              {tip.c.q === 1 && <p className="mono mt-1 text-xs text-flow">◆ needs review</p>}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <StoneTip bind={showTip} width={() => tilt.current?.clientWidth ?? 600} />
       </div>
     </div>
+  );
+}
+
+type TipAt = { c: CaseSummary; x: number; y: number };
+
+function StoneTip({ bind, width }: { bind: React.MutableRefObject<(t: TipAt | null) => void>; width: () => number }) {
+  const [tip, setTip] = useState<TipAt | null>(null);
+  useEffect(() => { bind.current = setTip; return () => { bind.current = () => {}; }; }, [bind]);
+  return (
+    <AnimatePresence>
+      {tip && (
+        <motion.div key="tip" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+          className="panel-strong pointer-events-none absolute z-20 w-64 p-3" role="tooltip"
+          style={{ left: Math.min(Math.max(tip.x - 128, 0), width() - 256), top: Math.max(0, tip.y - 158) }}>
+          <div className="flex items-center justify-between gap-2">
+            <span className="mono text-sm text-bone">{tip.c.id}</span>
+            <StatusChip status={tip.c.s} />
+          </div>
+          <dl className="mono mt-2 grid grid-cols-2 gap-y-1 text-xs">
+            <dt className="text-muted">claimed</dt><dd className="text-bone">{REPORTED_LABEL[tip.c.r] ?? tip.c.r}</dd>
+            <dt className="text-muted">findings</dt><dd className="text-bone">{tip.c.f}</dd>
+            <dt className="text-muted">steps</dt><dd className="text-bone">{tip.c.n}</dd>
+            <dt className="text-muted">confidence</dt><dd className="text-bone">{tip.c.c?.toFixed(2) ?? "—"}</dd>
+          </dl>
+          <p className="mt-2 text-xs leading-snug text-muted">{verdictLabel(tip.c.v)}</p>
+          {tip.c.q === 1 && <p className="mono mt-1 text-xs text-flow">◆ needs review</p>}
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
