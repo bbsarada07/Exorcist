@@ -117,3 +117,24 @@ repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
 
+## [2026-10-24T15:59:40Z] UI Tier 1: Exorcist cinematic front end (hero, graveyard, case file, exorcism)
+
+User Prompt (verbatim, secrets redacted):
+[Pasted brief] Build the "Exorcist" UI in code/ui in crazy mode, UI only. Step 0: read the real data (output.csv, decision_trace.jsonl, lie_report.json, lineage.json, review_queue.json, risk_scores.json, conflicts.jsonl, evaluation reports) and write docs/UI_DATA_NOTES.md; never invent data. Hard rules: do not modify engine/dataset/output.csv; real numbers only, risk labelled heuristic, needs-review badge with reason from review_queue.json; fully offline with bundled fonts; npm run export-data to static JSON in code/ui/public/data; quick start npm install && npm run dev/build/preview; zip excludes node_modules, dist, caches, secrets, videos. Performance law: 60fps, Canvas 2D particles, transform/opacity only, one rAF loop, pause when hidden, device-capped particles, lazy hero, reduced motion + visible Lite mode, initial bundle < 1.5MB gz. Look: ink/bone/green/ember/violet tokens, Instrument Serif / Inter / JetBrains Mono, grain, vignette, glass panels, status never by colour alone, contrast >= 4.5:1. Tier 1: hero "The Summoning", graveyard grid (+ledger, keyboard, palette), the exorcism, reported vs reality. Deliver screenshots in docs/ui, DEMO_SCRIPT.md, DESIGN_NOTES.md, effects README, README UI section; commit in small steps; stop after Tier 1.
+
+Agent Response Summary:
+Inspected every engine output schema first and documented each UI field and its source in docs/UI_DATA_NOTES.md; emails are masked at export and hero fragments are generic patterns. Built code/ui (Vite 6.4.4 + React 18 + TS + Tailwind 3 + Framer Motion + GSAP + Lenis + Zustand) with a single GSAP-driven animation loop, a lazy-loaded Canvas-2D particle hero with flashlight reveal and particle wordmark, a 518-tombstone graveyard with ledger and ctrl+K palette, a case file with shared-element zoom, reported-vs-reality rift, runbook with decision-trace panel, a GSAP exorcism generated from each case's remediation steps, a proof view for COMPLETE cases, and Lite mode. Verified keyboard flows and a clean-clone npm install/build/dev/preview; initial JS 136 KB gz; headless hero ~143 fps with 2,880 particles; engine, dataset and output.csv untouched; code.zip rebuilt without node_modules/dist.
+
+Actions:
+* Created code/ui/* (package.json + lock, configs, scripts/export-data.mjs, scripts/screenshots.mjs, src/{components,screens,effects,lib,styles}, public/data/*.json)
+* Created code/docs/UI_DATA_NOTES.md, DESIGN_NOTES.md, DEMO_SCRIPT.md, docs/ui/*.jpg (8), code/ui/src/effects/README.md; updated code/README.md, code/tools/build_zip.py, .gitignore
+* npm install/build/preview, playwright-core screenshots with local Chrome, clean-clone build test, python code/tools/build_zip.py, unit tests OK; commits 6772899..35900ee
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
+
