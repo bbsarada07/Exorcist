@@ -13,3 +13,21 @@ code/ui/blob-report/
 code.zip
 *.tsbuildinfo
 code/ui/.vite/
+
+# secrets: never commit real env files (the template stays)
+.env.*
+!.env.example
+!code/.env.example
+
+# tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+coverage/
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
