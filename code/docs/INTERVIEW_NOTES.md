@@ -107,3 +107,33 @@ Each finding below has a full card in `code/out/findings_evidence.jsonl`, and ea
   but with zero wrong samples to learn from, "0.6 means 60 %" is unproven. The weights are documented heuristics.
 - **What we would do next:** label the 57 ambiguous links (the cheapest way to get negative examples), then fit
   the confidence model on them.
+
+## Why a deterministic controller (and not a free-running LLM agent)
+- **The loop is agentic in the sense that matters here:** state (known identifiers, hypotheses, resources, a
+  frontier of lookups), seven tools, and a controller that picks the next lookup from what the last ones found. A log
+  line that prints an identifier sends it down that trace. A connector sends it to the records the connector
+  recreated, and a backup to its restore path. A new identifier triggers a re-sweep of every store. It stops when
+  the frontier is empty.
+- **What is deliberately not agentic is the choice policy.** It is a fixed priority order: identity, then identifier
+  sweeps, then following leads, then context, with ties broken by the order the leads were found. Same input, same
+  trace (sha256 `46046bec…`, also identical under different `PYTHONHASHSEED`s, tested). An LLM choosing lookups
+  would add cost and run-to-run variance and buy nothing measurable: every tool returns structured facts, and the
+  frontier empties after about 20 steps per case anyway (max 36).
+- **Where an LLM could still help:** auditing the trace afterwards ("is any finding unsupported by its evidence?",
+  optional Tier C), never deciding a verdict.
+
+## Investigator cross-check: what it shows, and what it does not (evaluation_report.md §6d)
+- **Agreement:** identical status and identical finding sets on 540/540 deletion cases (508 evaluation, 32
+  samples; 763/763 findings). On the samples the investigator scores 32/32 statuses and 41/41 findings against gold.
+- **Second hop:** 166 evaluation resources are reached only by following a log trace from the line that prints the
+  identifier to the line that names the resource. 35 of them are ghosts that a single identifier query would miss.
+  The engine also has all 166, because its log parser joins trace lines at parse time.
+- **Disagreements:** one category only, `engine_only_chain_link` (383 resources in 316 cases): records the engine
+  tied by deletion-worker timing with no identifier. Lead-following cannot reach them by design, and they only
+  ever produce verification steps. There are 0 material disagreements. All 383 are in `conflicts.jsonl`, and the
+  cases are listed in `review_queue.json`.
+- **The honest limit:** the investigator shares the parsed fact table and the Timeline and Policy agents with the
+  engine. So 100 % agreement shows that the engine's discovery has no gap a lead-following search can find. It is
+  not independent evidence that the rules are right. Also, its 155 connector checks, 65 restore checks and 58
+  destination inspections found nothing new: in this dataset every recreated record also carries the subject's
+  identifiers, so the identifier sweeps reach it first.

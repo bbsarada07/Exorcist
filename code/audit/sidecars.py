@@ -10,6 +10,8 @@ risk_scores.json      USP6  transparent exposure heuristic ("fix these first"), 
 decoys.json           USP8  near-miss identifiers met and rejected
 ghosts.json                 every violation classified by ghost type (leftover record, exposed PII in a retained
                             record, active sync, restore risk, replica drift); counts for false-COMPLETE and all cases
+investigation_traces.jsonl  every step of the lead-following investigator (exorcist/investigator); crosscheck.json =
+                            agreement with the engine, second-hop discoveries, disagreement categories
 findings_evidence.jsonl     one evidence card per FINDING: where / why it matches / state at audit_at /
                             confidence factors / what could recreate it (audit/evidence_cards.py)
 cases.json            UI    compact per-case bundle for the dashboard
@@ -347,4 +349,9 @@ def write_sidecars(engine, results, out_dir: Path, llm=None, ids: list[str] | No
                                   if i.kind in ("email", "user", "phone")) if c.user_id else [],
         })
     _dump(out_dir / "cases.json", bundle)
+    # B1-B3: independent lead-following investigator, cross-checked against these results (merges its disagreements
+    # into conflicts.jsonl / review_queue.json written above). Lives outside audit/; only this sidecar writer imports
+    # it, after output.csv has been written, so it cannot influence the answer.
+    from exorcist.investigator import crosscheck
+    crosscheck.run(engine, results, out_dir, verbose=False)
     return {"trace_steps": len(trace), "review_queue": len(queue), "finding_cards": len(cards)}

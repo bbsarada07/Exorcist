@@ -30,6 +30,8 @@ Runs offline in ~3 s after the first run. External tools used for document evide
 | `python code/main.py investigate --random --seed 7` | the same for a seeded-random evaluation case |
 | `python code/main.py investigate --random --seed 7 --mutate add-active-flow` | mutate a copy of the case (`add-active-flow`, `move-audit-before-resurrection`, `change-email-case`) and check the predicted change |
 | `python code/evaluation/calibration.py` | reliability of the evidence-card confidences on the samples |
+| `python code/main.py crosscheck` | lead-following investigator (`code/exorcist/investigator/`) on every case vs the engine → `code/out/investigation_traces.jsonl`, `crosscheck.json` (also run by the default `python code/main.py`) |
+| `python code/evaluation/investigator_eval.py` | investigator status + findings vs the sample gold |
 | `python code/tools/ghost_hunt.py --seed 2026` | regenerates `docs/GHOST_HUNT.md` (ghost census + 5 seeded-random walkthroughs) |
 
 Optional LLM: `cp code/.env.example .env`, set `AUDIT_LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. It is

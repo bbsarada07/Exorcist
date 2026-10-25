@@ -3,6 +3,7 @@
     python code/main.py              # writes <repo>/output.csv + sidecars in code/out/, validates
     python code/main.py --no-sidecars
     python code/main.py investigate --case <id> | --random --seed N  [--mutate add-active-flow|...]
+    python code/main.py crosscheck   # investigator loop vs engine -> code/out/investigation_traces.jsonl, crosscheck.json
 
 Deterministic and offline. An LLM is never needed; if AUDIT_LLM_PROVIDER is set it is only used as a
 cached fallback for low-confidence intent classification (see audit/llm.py).
@@ -37,6 +38,11 @@ def main() -> int:
     if sys.argv[1:2] == ["investigate"]:   # evidence-first walkthrough / mutations (never writes output.csv)
         from audit.walkthrough import cli
         return cli(sys.argv[2:])
+    if sys.argv[1:2] == ["crosscheck"]:    # lead-following investigator vs engine; sidecars only
+        from exorcist.investigator import crosscheck
+        engine = AuditEngine(DATASET_DIR, llm=build_llm())
+        crosscheck.run(engine, engine.run(), OUT_DIR)
+        return 0
     ap = argparse.ArgumentParser()
     ap.add_argument("--output", default=str(REPO_ROOT / "output.csv"))
     ap.add_argument("--no-sidecars", action="store_true")

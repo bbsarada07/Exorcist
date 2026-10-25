@@ -25,7 +25,7 @@ from audit.config import DATASET_DIR  # noqa: E402
 from audit.util import EMAIL_RE, read_csv  # noqa: E402
 from audit.validator import known_evidence_ids, validate_rows  # noqa: E402
 
-ENGINE_DIRS = [CODE / "audit", CODE / "main.py"]
+ENGINE_DIRS = [CODE / "audit", CODE / "exorcist", CODE / "main.py"]
 ID_LITERAL = re.compile(r"""["'](?:case|evidence|activity|audit|user)_\d+["']|"""
                         r"""["'](?:account|search|analytics|support|export|data_flow|backup|audit_record|tombstone|"""
                         r"""legal_hold|marketing|object|cache|email_delivery)_\d+["']""")

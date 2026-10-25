@@ -71,6 +71,26 @@ class InvestigateTests(unittest.TestCase):
             if cited:   # never cite a file captured after the audit cut
                 self.assertLessEqual(cited["file_captured_at"], card["state_at_audit"]["audit_at"])
 
+    def test_investigator_agrees_and_trace_is_deterministic(self):
+        from exorcist.investigator import crosscheck
+        a = crosscheck.run(self.engine, self.results, None, verbose=False)
+        engine2 = AuditEngine(DATASET_DIR)
+        b = crosscheck.run(engine2, engine2.run(), None, verbose=False)
+        self.assertEqual(a["trace_sha256"], b["trace_sha256"])
+        self.assertTrue(a["steps"]["frontier_exhausted_all"])
+        self.assertEqual(a["agreement"]["all_deletion_cases"]["status_agreement"], 1.0)
+        self.assertEqual(a["material_disagreement_cases_evaluation"], 0)
+
+    def test_investigator_trace_independent_of_hash_seed(self):
+        import os
+        import subprocess
+        code = ("import sys; sys.path.insert(0, %r); from audit.config import DATASET_DIR; "
+                "from audit.pipeline import AuditEngine; from exorcist.investigator import crosscheck; "
+                "e = AuditEngine(DATASET_DIR); print(crosscheck.run(e, e.run(), None, verbose=False)['trace_sha256'])") % str(CODE)
+        outs = {subprocess.run([sys.executable, "-c", code], env={**os.environ, "PYTHONHASHSEED": seed},
+                               capture_output=True, text=True, check=True).stdout.strip() for seed in ("1", "999")}
+        self.assertEqual(len(outs), 1, outs)
+
     def test_walkthrough_is_deterministic_and_masked(self):
         cid = random.Random(5).choice(self.ids)
         one = walkthrough(self.engine, self.results, cid)

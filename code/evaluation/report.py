@@ -20,7 +20,7 @@ from audit.llm import PRICES, read_ledger  # noqa: E402
 from audit.pipeline import AuditEngine  # noqa: E402
 from audit.sidecars import confidence, lie_report  # noqa: E402
 from audit.util import case_sort_key, read_csv  # noqa: E402
-from evaluation import calibration, citation_study, custom_cases, holdout, metamorphic  # noqa: E402
+from evaluation import calibration, citation_study, custom_cases, holdout, investigator_eval, metamorphic  # noqa: E402
 from audit.sidecars import ghost_census  # noqa: E402
 from evaluation.metrics import load_rows, score  # noqa: E402
 
@@ -219,6 +219,42 @@ def main():
     L.append(f"\n{gh['cases']['false_COMPLETE']} false-COMPLETE cases, {gh['cases']['all_incomplete']} INCOMPLETE cases; "
              f"{gh['resurrected_ghosts']} ghosts were recreated by a sync/restore job. Walkthroughs of 5 seeded-random cases: "
              "`docs/GHOST_HUNT.md`.\n")
+    from exorcist.investigator import crosscheck
+    xc = crosscheck.run(engine, results, None, verbose=False)
+    ie = investigator_eval.evaluate(engine, results)
+    ag, sh = xc["agreement"], xc["second_hop"]
+    L.append("## 6d. Investigator loop vs engine (cross-check)\n")
+    L.append("A second, independent discovery path (`code/exorcist/investigator/`): a deterministic controller that starts "
+             "from the request email and chooses each next lookup from what the previous lookups found (identity → "
+             "identifier sweeps over the 12 store types in DATA_NOTES §9 → log traces, sync destinations, restore "
+             "targets, activity chains, new identifiers). It does not use the engine's linker. State and policy at "
+             "audit_at reuse the engine's Timeline and Policy agents, so a disagreement means *different resources were "
+             "discovered*, not a second copy of the rules. Every step is in `code/out/investigation_traces.jsonl` "
+             f"(trace sha256 `{xc['trace_sha256'][:16]}…`, identical across runs and hash seeds).\n")
+    L.append(_table(["set", "cases", "status agreement", "identical finding sets", "engine findings", "investigator findings", "shared"],
+                    [[k, v["cases"], v["status_agreement"], v["identical_finding_sets"], v["engine_findings"],
+                      v["investigator_findings"], v["shared_findings"]] for k, v in ag.items()]))
+    g = ie["investigator_findings_vs_gold"]
+    L.append(f"\nSamples vs gold (`python code/evaluation/investigator_eval.py`): investigator status accuracy "
+             f"{ie['investigator_status_accuracy']}, findings precision {g['precision']} / recall {g['recall']} "
+             f"({g['tp']} TP, {g['fp']} FP, {g['fn']} FN), same as the engine.\n")
+    L.append(f"Steps: {xc['steps']['total']} over {ag['all_deletion_cases']['cases']} cases (mean {xc['steps']['mean_per_case']}, "
+             f"max {xc['steps']['max_per_case']}); the frontier emptied on every case: {xc['steps']['frontier_exhausted_all']}. "
+             "Leads followed: " + ", ".join(f"{k} {v}" for k, v in xc["leads_followed"].items()) + ".\n")
+    L.append(f"**Second-hop discoveries** (resources no identifier query returned, reached only by following a lead): "
+             f"{sh['discoveries_evaluation']} in the evaluation set ("
+             + ", ".join(f"{k} {v}" for k, v in sh["by_lead_type_evaluation"].items()) + f"); "
+             f"{sh['ghosts_found_only_after_a_lead_evaluation']} of them are ghosts (violations) that would be missed without "
+             "following the lead. All were also linked by the engine, whose log parser joins trace lines at parse time. "
+             f"The {xc['leads_followed'].get('check_flow', 0)} connector checks, {xc['leads_followed'].get('check_restore', 0)} "
+             f"restore checks and {xc['leads_followed'].get('destination', 0)} destination inspections found no resource the "
+             f"identifier sweeps had not already found; {xc['identifiers_discovered_in_files']} new identifiers were found in files.\n")
+    L.append("Disagreement categories (evaluation): " + ", ".join(f"`{k}` {v}" for k, v in xc["disagreement_categories_evaluation"].items())
+             + f" across {xc['cases_with_any_disagreement_evaluation']} cases; material disagreements (finding, status or "
+             f"identifier link): {xc['material_disagreement_cases_evaluation']} cases. `engine_only_chain_link` = resources the "
+             "engine tied by deletion-worker timing with no identifier; a lead-following search cannot reach them by design. "
+             "Every disagreement is in `conflicts.jsonl` (type `engine_vs_investigator`) and listed under "
+             "`investigator_disagreements` in `review_queue.json`.\n")
     L.append("## 7. Citation rule chosen empirically (Decision 2)\n")
     L.append(_table(["rule", f"gold citations reproduced (of {cit_total})"],
                     [[k, v] for k, v in sorted(cit_scores.items(), key=lambda kv: -kv[1])]))
