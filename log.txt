@@ -297,3 +297,26 @@ branch=deletion-audit-agent
 repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
+
+## [2026-10-25T03:04:43Z] Tier B: investigator loop, deterministic traces, engine cross-check
+
+User Prompt (verbatim, secrets redacted):
+Start Tier B from the earlier AGENTIC DEPTH prompt: B1, B2 and B3 only. Skip B4 (UI) and Tier C. HARD TIME LIMIT: about 2.5 hours. All rules still hold: output.csv must remain byte-identical (sha256 64e5b6c8755891f58d9ec2eadd8878889e18b134cb6b1af7111e3a33957cf787), write only to sidecars, no hardcoded case ids, deterministic, no engine changes unless I approve after you show me a diff. Investigate only the store types listed in DATA_NOTES. After B1-B3, report the agreement rate with the main engine on all cases and on samples, the number of second-hop discoveries, and every disagreement category. If agreement is poor or the limit is reached, stop, keep the code out of the default pipeline, document what is incomplete, and tell me. Update INTERVIEW_NOTES.md and evaluation_report.md honestly, rebuild code.zip, re-run the secret scan and the tests, commit, and give me a 5-line status.
+
+Agent Response Summary:
+Built B1-B3 only (no UI, no Tier C), well inside the time limit. code/exorcist/investigator is a deterministic lead-following controller: state = identifiers, hypotheses, resources, frontier; 7 tools over the 12 DATA_NOTES store types; the next lookup is chosen from findings; it stops on an empty frontier. Every step goes to code/out/investigation_traces.jsonl, whose sha256 is stable across runs and hash seeds. Cross-check: 540/540 status and finding-set agreement (samples 32/32, gold 41/41 findings); 166 second-hop trace discoveries, 35 of them ghosts; the only disagreement category is engine_only_chain_link (383 resources, out of reach by design), merged into conflicts.jsonl and review_queue.json. The docs state that agreement is partly by construction (shared fact table, Timeline and Policy agents), so it shows discovery completeness, not rule correctness. output.csv is byte-identical and no engine logic changed.
+
+Actions:
+* code/exorcist/investigator/{tools,controller,crosscheck}.py (new); code/audit/sidecars.py runs crosscheck after output.csv; code/main.py crosscheck subcommand
+* code/evaluation/investigator_eval.py (new), report.py section 6d; regenerated evaluation_report.md / usage_report.md
+* code/tests: lint extended to code/exorcist, 2 new investigator tests; 13 tests OK
+* code/docs/INTERVIEW_NOTES.md (why deterministic controller, cross-check limits), code/README.md
+* git commit 98813b9; code.zip rebuilt (157 files, 4.34 MB), secret scan clean
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
