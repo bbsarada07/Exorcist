@@ -250,3 +250,50 @@ branch=deletion-audit-agent
 repo_root=C:\Users\bbsar\Desktop\Exorcist
 worktree=main
 parent_agent=none
+
+## [2026-10-25T02:14:13Z] Agentic depth + evidence pass: Tier A (cards, ghost hunt, errors, CLI)
+
+User Prompt (verbatim, secrets redacted):
+AGENTIC DEPTH + EVIDENCE PASS (engine-side, sidecar only)
+
+HARD RULES
+- output.csv must stay byte-identical to the current submission. Everything new writes to code/out/ sidecars. If the new layer exposes a real engine bug, STOP and tell me before changing anything that feeds output.csv; fix it only as a general rule, re-run all tests, and show the diff.
+- No hardcoded case ids or file names; keep the lint and determinism tests passing. Same trace every run for the same input.
+- Real data only. List in docs/DATA_NOTES.md which store types actually exist in the dataset and investigate only those. Never claim embeddings, caches or other stores that are not in the data.
+- Do not touch dataset/. No new UI effects.
+
+TIER A (do first)
+A1. FINDING EVIDENCE CARDS: write code/out/findings_evidence.jsonl, one card per finding with: where it lives (store type, system_id, resource_id), why it matches the person (identifier type: current email / historical email / hash / phone / worker-chain link; match mode: exact / normalized / hash / chain-linked; the evidence ids behind it), state at audit_at with the fact's own timestamp, a per-finding confidence 0-1 with the factors that set it (e.g. direct identifier = high, chain-linked by elimination = lower), and what could recreate it. Calibrate on the samples and print a reliability table.
+A2. GHOST HUNT (no gold labels): among cases where reported_status = COMPLETE but the reconstruction says INCOMPLETE, classify each ghost by type (leftover record, exposed PII in a retained record, active sync, restore risk, replica drift). Pick 5 cases with a SEEDED random draw (seed printed, not hand-picked) and write docs/GHOST_HUNT.md walking each from request to finding with the evidence ids. Report counts per ghost type for all 518.
+A3. ERROR ANALYSIS: docs/ERROR_ANALYSIS.md covering every sample miss and why, the categories of uncertainty (41 ambiguous account links, 16 analytics ties, 10 no-account cases), what the system does when unsure (flag, lower confidence, never invent), and what we would change with more time. Be blunt.
+A4. LIVE DEMO COMMANDS: `python code/main.py investigate --case <id>` prints a readable evidence-first walkthrough; `--random --seed N` picks a case without me choosing; `--mutate add-active-flow|move-audit-before-resurrection|change-email-case` applies a mutation to a copy of the case data and shows the status and steps change as the logic predicts. Add tests for each mutation.
+
+TIER B (do after A passes)
+B1. INVESTIGATOR LOOP in code/exorcist/investigator/: state = known identifiers, hypotheses, frontier of lookups still to do. Tools: lookup_identity, query_snapshot(system, identifiers), search_logs(identifier or trace_id), get_activity_chain, check_flow(system), check_restore(backup), read_evidence(file_id). A controller chooses the next lookup FROM THE FINDINGS, not from a fixed order. Examples: a log line shows an identifier -> query the search index, support attachments and analytics for it and its trace_id; a sync job is found -> inspect the destination store; a backup is found -> check its restore path; a new historical identifier is discovered -> re-query every store with it. Stop when the frontier is empty.
+B2. TRACE: log every step to code/out/investigation_traces.jsonl: hypothesis, tool, arguments, result summary, new findings, and why the next step was chosen. Deterministic.
+B3. CROSS-CHECK: compare the investigator's final findings with the main engine's for all 518 cases. Report the agreement rate (on all cases and on samples vs gold). Every disagreement goes to conflicts.jsonl and the review queue with the reason. Also report how many ghosts were found only after the loop followed a lead (second-hop discoveries).
+B4. UI (minimal, no new effects): one "Investigation" tab on case detail showing the trace as a step timeline and the finding cards with confidence, reading exported static data. Keep all 56 e2e tests passing, add tests for the new tab, privacy scan 0 leaks, bundle under budget.
+
+TIER C (optional, only if A and B are done)
+C1. LLM AUDITOR: only for the 64 review-queue cases plus 20 seeded-random others. Input = trace + finding cards only. Ask: is any finding unsupported by its cited evidence? Any store that should have been checked? temperature 0, cached by content hash, structured JSON output, never changes output.csv, logs tokens and cost. If no API key is set, skip and document. Update evaluation/usage_report.md with the real numbers (state clearly the verdicts stay deterministic).
+
+DELIVERABLES
+Updated docs/INTERVIEW_NOTES.md with an honest "why deterministic controller" section, the strongest 5 findings with evidence, and the error analysis summary. Update evaluation/evaluation_report.md with agreement rates and the reliability table. Rebuild code.zip, re-run the secret scan, commit. Then show me a 5-line status and stop after each tier.
+
+Agent Response Summary:
+Completed Tier A only, then stopped as instructed; output.csv stayed byte-identical (sha256 64e5b6c8...f787) and no engine bug surfaced. Added finding evidence cards (code/out/findings_evidence.jsonl, 763 cards: store type, identifier type and match mode, state at audit_at with fact time, confidence with factors, recreation paths), sample calibration (findings 41/41 correct, mean conf 0.98; links 108/108), a ghost census for all 518 plus docs/GHOST_HUNT.md with 5 seed-2026 walkthroughs, docs/ERROR_ANALYSIS.md, a store-type inventory in DATA_NOTES, and `main.py investigate` with three mutations covered by new tests. Key observation: every evaluation finding is identifier-backed; chain links only produce verification steps (380 of 3,257), so a wrong chain guess costs steps, not statuses.
+
+Actions:
+* code/audit/evidence_cards.py, walkthrough.py (new); code/audit/sidecars.py (findings_evidence.jsonl, ghosts.json), config.py (STORE_TYPE); code/main.py (investigate subcommand)
+* code/evaluation/calibration.py (new), report.py (sections 6b, 6c); regenerated evaluation_report.md / usage_report.md
+* code/tools/ghost_hunt.py -> code/docs/GHOST_HUNT.md; code/docs/ERROR_ANALYSIS.md, DATA_NOTES.md s9, INTERVIEW_NOTES.md, code/README.md
+* code/tests/test_investigate.py (5 tests); python -m unittest discover -s code/tests: 11 OK
+* git commit b73d829; python code/tools/build_zip.py -> code.zip (149 files, 4.13 MB, secret scan clean)
+
+Context:
+tool=Claude Code
+model=claude-opus-5-5
+branch=deletion-audit-agent
+repo_root=C:\Users\bbsar\Desktop\Exorcist
+worktree=main
+parent_agent=none
