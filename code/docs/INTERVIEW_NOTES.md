@@ -77,3 +77,33 @@ caught an id in a comment; identifier-free coin flips were resolved by the learn
   names, and asserts the engine never reads `sample_output.csv`.
 - **What would you do with more time?** Slot-aware worker clock for the remaining ties, a VLM cross-check of OCR on
   screenshots, and the forensic UI on top of the sidecars.
+
+## Evidence pass: the strongest 5 findings
+Each finding below has a full card in `code/out/findings_evidence.jsonl`, and each case can be replayed live with
+`python code/main.py investigate --case <id>`. How they were chosen:
+- the case was falsely claimed COMPLETE;
+- the deletion worker itself reported SUCCESS on the very resource the evidence still shows;
+- the card confidence is the highest available;
+- there is one per ghost type. Replica drift has no such worker contradiction, so its slot goes to the
+  highest-confidence drift ghost whose drift file was captured before the audit cut.
+
+| Case | Ghost | Resource | The claim | The evidence at audit_at | Card confidence |
+|---|---|---|---|---|---|
+| case_115 | leftover record | `search_service/search_4417` | activity_3073 DELETE_RECORD SUCCESS (08-02) | evidence_88 (fact 08-22): record still exists, current email exact | 0.99 |
+| case_116 | active sync | `integration_service/data_flow_6699` | activity_3029 CHECK_DATA_FLOW SUCCESS (07-30) | evidence_88 (fact 08-22): connector enabled, carries current email | 0.99 |
+| case_123 | restore risk | `backup_service/backup_8742` | activity_3170 CHECK_RESTORE_ACCESS SUCCESS (08-08) | evidence_87 (fact 08-17): restore path open | 0.99 |
+| case_487 | exposed PII in a retained record | `analytics_platform/analytics_7818` | activity_452 ANONYMIZE_RECORD SUCCESS (02-06) | evidence_64 (fact 02-18): analytics profile still holds the current email | 0.99 |
+| case_307 | replica drift | `account_service/account_585` | workflow reported COMPLETE (05-07) | evidence_29 (fact 05-19): gone from primary and replica_eu_west, alive in replica_ap_south with email, name, phone and user_id | 0.98 |
+
+## Error analysis summary (full text: docs/ERROR_ANALYSIS.md)
+- **Samples:** 32/32 statuses, 190/193 steps, 0 false-positive steps. The 3 misses are resources that occur in no
+  participant file, so we refuse to derive ids from case numbers.
+- **Where evaluation answers can be wrong:** 41 ambiguous account links (20 with negative margin, i.e. close to coin
+  flips), 16 identifier-free analytics ties and 10 cases with no account evidence. These are 64 queued cases in all.
+- **Why that cannot flip a status:** all 722 evaluation findings rest on identifier evidence (721 direct, 1
+  contested). Chain links only produce verifications: 380 of 3,257 steps, 57 of them flagged. A wrong guess costs a
+  step, not a status. A link we never made could still hide a violation, and that we cannot measure.
+- **Calibration:** on the samples the finding confidences are slightly under-confident (mean 0.98, accuracy 1.0),
+  but with zero wrong samples to learn from, "0.6 means 60 %" is unproven. The weights are documented heuristics.
+- **What we would do next:** label the 57 ambiguous links (the cheapest way to get negative examples), then fit
+  the confidence model on them.

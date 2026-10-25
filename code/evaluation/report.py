@@ -20,7 +20,8 @@ from audit.llm import PRICES, read_ledger  # noqa: E402
 from audit.pipeline import AuditEngine  # noqa: E402
 from audit.sidecars import confidence, lie_report  # noqa: E402
 from audit.util import case_sort_key, read_csv  # noqa: E402
-from evaluation import citation_study, custom_cases, holdout, metamorphic  # noqa: E402
+from evaluation import calibration, citation_study, custom_cases, holdout, metamorphic  # noqa: E402
+from audit.sidecars import ghost_census  # noqa: E402
 from evaluation.metrics import load_rows, score  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -195,6 +196,29 @@ def main():
              f"{len(review)} cases ({below} below the 0.6 threshold, plus every case with an ambiguous chain link or no "
              "account evidence), each with reasons; output is never changed for them. Only 32 labelled cases exist, so "
              "the table is indicative, not a calibrated probability.\n")
+    cal = calibration.calibrate(engine, results)
+    L.append("## 6b. Evidence-card reliability (per-finding confidence)\n")
+    L.append("Each FINDING has an evidence card (`code/out/findings_evidence.jsonl`) with a 0-1 confidence and the factors "
+             "that set it (`audit/evidence_cards.py`). Reliability on the samples (`python code/evaluation/calibration.py`):\n")
+    for key, title in (("findings", "A. finding cards"), ("resource_links", "B. every emitted resource, match strength only")):
+        t = cal[key]
+        L.append(f"**{title}**: n={t['n']}, mean confidence {t['mean_conf']}, accuracy {t['accuracy']}, ECE {t['ece']}\n")
+        L.append(_table(["confidence bin", "n", "mean confidence", "accuracy"],
+                        [[b["bin"], b["n"], b["mean_conf"], b["accuracy"]] for b in t["bins"]]))
+        L.append("\nBy match mode: " + ", ".join(f"{m} n={v['n']} (conf {v['mean_conf']}, acc {v['accuracy']})"
+                                              for m, v in t["by_mode"].items()) + ".\n")
+    L.append("The samples contain no wrong finding and no wrong emitted resource, so these tables can show the confidences "
+             "are not over-confident (they are slightly under-confident) but cannot show that 0.6 means 60 %. "
+             f"{cal['gold_resources_never_emitted']} gold resources were never emitted (unreachable, §4) and carry no "
+             "confidence. Details: `docs/ERROR_ANALYSIS.md` §4.\n")
+    gh = ghost_census(results, eval_ids)
+    L.append("## 6c. Ghost census (evaluation set, no labels)\n")
+    L.append(_table(["ghost type", "false-COMPLETE: ghosts", "cases", "all INCOMPLETE: ghosts", "cases"],
+                    [[t, gh["ghosts_by_type"]["false_COMPLETE"][t], gh["cases_with_type"]["false_COMPLETE"][t],
+                      gh["ghosts_by_type"]["all_incomplete"][t], gh["cases_with_type"]["all_incomplete"][t]] for t in gh["types"]]))
+    L.append(f"\n{gh['cases']['false_COMPLETE']} false-COMPLETE cases, {gh['cases']['all_incomplete']} INCOMPLETE cases; "
+             f"{gh['resurrected_ghosts']} ghosts were recreated by a sync/restore job. Walkthroughs of 5 seeded-random cases: "
+             "`docs/GHOST_HUNT.md`.\n")
     L.append("## 7. Citation rule chosen empirically (Decision 2)\n")
     L.append(_table(["rule", f"gold citations reproduced (of {cit_total})"],
                     [[k, v] for k, v in sorted(cit_scores.items(), key=lambda kv: -kv[1])]))

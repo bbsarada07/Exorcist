@@ -26,6 +26,11 @@ Runs offline in ~3 s after the first run. External tools used for document evide
 | `python code/evaluation/report.py` | regenerates `evaluation/evaluation_report.md` and `evaluation/usage_report.md` |
 | `python -m unittest discover -s code/tests` | no-hardcode lint, determinism (two hash seeds), validator negative tests |
 | `python code/tools/inspect_case.py case_123` | debug view: links, observations, assessments, steps |
+| `python code/main.py investigate --case case_123` | evidence-first walkthrough: identity → links → each finding's evidence, state at audit_at, recreation paths, confidence |
+| `python code/main.py investigate --random --seed 7` | the same for a seeded-random evaluation case |
+| `python code/main.py investigate --random --seed 7 --mutate add-active-flow` | mutate a copy of the case (`add-active-flow`, `move-audit-before-resurrection`, `change-email-case`) and check the predicted change |
+| `python code/evaluation/calibration.py` | reliability of the evidence-card confidences on the samples |
+| `python code/tools/ghost_hunt.py --seed 2026` | regenerates `docs/GHOST_HUNT.md` (ghost census + 5 seeded-random walkthroughs) |
 
 Optional LLM: `cp code/.env.example .env`, set `AUDIT_LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY`. It is
 only a cached fallback for low-confidence intent (never needed on this dataset; see `usage_report.md`).

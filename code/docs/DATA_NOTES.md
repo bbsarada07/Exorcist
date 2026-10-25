@@ -174,3 +174,34 @@ non-deletion requests (phone update, stop promos, portable export, login reset, 
 opt-out, access request, invoices, email change, copy of data). Non-deletion texts contain explicit negations
 ("I am not asking for deletion", "please don't delete or change anything", "without removing", "only").
 These 10 coincide with the 10 `CLASSIFY_REQUEST … non-deletion` activity rows (used as corroboration, not proof).
+
+## 9. Store types that actually exist (and the ones that do not)
+
+Measured from the parsed evidence (`audit/parsers`) for the evidence-card and ghost-hunt pass. Only these store
+types are investigated. Resources = distinct resource ids observed in evidence or activity facts; files =
+participant evidence files with at least one fact about that store.
+
+| Store type | system_id | resources | files | formats (files) | replica copies seen |
+|---|---|---:|---:|---|---|
+| account database | `account_service` | 597 | 69 | json 25, log 25, png 1, sql 17, txt 1 | failover_replica, read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| analytics store | `analytics_platform` | 206 | 70 | json 25, log 23, png 1, sql 20, txt 1 | read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| backup archive | `backup_service` | 68 | 57 | json 20, log 18, png 1, sql 17, txt 1 | read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| customer export store | `export_service` | 35 | 46 | json 18, log 13, pdf 1, png 1, sql 12, txt 1 | read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| account tombstone store | `identity_service` | 11 | 3 | json 1, png 1, sql 1 | failover_replica |
+| integration connector (sync job) | `integration_service` | 156 | 69 | json 24, log 23, png 1, sql 20, txt 1 | read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| legal hold register | `legal_service` | 8 | 7 | json 3, log 1, sql 3 | read_replica, reporting_replica |
+| marketing platform | `marketing_platform` | 1 | 1 | png 1 | - |
+| object storage | `object_storage` | 1 | 1 | png 1 | - |
+| search index | `search_service` | 314 | 70 | json 24, log 23, png 1, sql 21, txt 1 | read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| security audit log | `security_service` | 461 | 73 | json 26, log 23, pdf 1, png 1, sql 21, txt 1 | failover_replica, read_replica, replica_ap_south, replica_eu_west, reporting_replica |
+| support ticketing system | `support_platform` | 196 | 72 | json 24, log 24, pdf 1, png 2, sql 20, txt 1 | read_replica, replica_ap_south, replica_eu_west, reporting_replica, support_replica |
+
+**Not in the data, never claimed:**
+- `cache_service` (284 REFRESH_CACHE events) and `email_delivery_service` (368 SEND_EMAIL events) appear only as
+  targets in `system_activity.csv`. No evidence file shows their contents, so no finding or verification can point
+  at them, and none does.
+- Likewise, `archive_service`, `object_store`, `account_replication_cluster` and `privacy_case_management` occur
+  only as activity targets. The replication cluster's checkpoints are used only as a "could recreate" note on
+  evidence cards.
+- There are **no** embeddings or vector stores, no ML feature stores, no message queues, no CDN or browser caches,
+  and no data warehouse beyond the analytics replicas. Nothing in the engine or the docs assumes such stores.

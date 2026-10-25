@@ -111,3 +111,21 @@ RISK_WEIGHTS = {
     "per_extra_system": 1.5,
 }
 REVIEW_CONFIDENCE_THRESHOLD = 0.6
+
+# Store type of each system, for explanations only (evidence cards, walkthroughs). Only systems that occur in the
+# participant evidence are listed (docs/DATA_NOTES.md §9); cache_service and email_delivery_service appear solely as
+# activity-stream targets with no evidence file, so no card can ever point at them.
+STORE_TYPE = {
+    "account_service": "account database",
+    "search_service": "search index",
+    "analytics_platform": "analytics store",
+    "support_platform": "support ticketing system",
+    "export_service": "customer export store",
+    "integration_service": "integration connector (sync job)",
+    "backup_service": "backup archive",
+    "security_service": "security audit log",
+    "identity_service": "account tombstone store",
+    "legal_service": "legal hold register",
+    "marketing_platform": "marketing platform",
+    "object_storage": "object storage",
+}

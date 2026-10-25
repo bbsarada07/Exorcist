@@ -8,6 +8,10 @@ lineage.json          USP4  resurrection / recreation paths for INCOMPLETE cases
 conflicts.jsonl       USP5  contradictory source pairs and which side was trusted
 risk_scores.json      USP6  transparent exposure heuristic ("fix these first"), not a financial estimate
 decoys.json           USP8  near-miss identifiers met and rejected
+ghosts.json                 every violation classified by ghost type (leftover record, exposed PII in a retained
+                            record, active sync, restore risk, replica drift); counts for false-COMPLETE and all cases
+findings_evidence.jsonl     one evidence card per FINDING: where / why it matches / state at audit_at /
+                            confidence factors / what could recreate it (audit/evidence_cards.py)
 cases.json            UI    compact per-case bundle for the dashboard
 """
 from __future__ import annotations
@@ -223,6 +227,38 @@ def risk(r) -> dict:
             "sensitivity_sum": sens}
 
 
+def ghost_census(results, ids) -> dict:
+    """Ghost = one violation the workflow left behind. Typed by what it is, counted per case and per finding."""
+    from .walkthrough import GHOST_TYPES, ghost_type
+    per_case, totals = {}, {"false_COMPLETE": Counter(), "all_incomplete": Counter()}
+    case_counts = {"false_COMPLETE": Counter(), "all_incomplete": Counter()}
+    by_claim = defaultdict(Counter)
+    for cid in ids:
+        r = results[cid]
+        if r.status != "INCOMPLETE":
+            continue
+        cited = {s.resource_id: s.evidence_id for s in r.steps if s.phase == "FINDING"}
+        ghosts = [{"resource_id": a.resource_id, "system_id": a.system_id, "type": ghost_type(a), "finding": a.finding,
+                   "evidence_id": cited.get(a.resource_id, ""), "resurrected": bool(a.resurrected_by)}
+                  for a in r.assessments if a.status == "violation"]
+        per_case[cid] = {"reported_status": r.case.reported_status, "ghosts": ghosts}
+        groups = ["all_incomplete"] + (["false_COMPLETE"] if r.case.reported_status == "COMPLETE" else [])
+        for g in groups:
+            totals[g].update(x["type"] for x in ghosts)
+            case_counts[g].update({x["type"] for x in ghosts})
+        by_claim[r.case.reported_status].update(x["type"] for x in ghosts)
+    return {
+        "types": list(GHOST_TYPES),
+        "cases": {g: sum(1 for c in per_case.values() if g == "all_incomplete" or c["reported_status"] == "COMPLETE")
+                  for g in totals},
+        "ghosts_by_type": {g: {t: totals[g][t] for t in GHOST_TYPES} for g in totals},
+        "cases_with_type": {g: {t: case_counts[g][t] for t in GHOST_TYPES} for g in case_counts},
+        "ghosts_by_reported_status": {k: {t: v[t] for t in GHOST_TYPES} for k, v in sorted(by_claim.items())},
+        "resurrected_ghosts": sum(1 for c in per_case.values() for x in c["ghosts"] if x["resurrected"]),
+        "per_case": per_case,
+    }
+
+
 def write_sidecars(engine, results, out_dir: Path, llm=None, ids: list[str] | None = None) -> dict:
     out_dir.mkdir(parents=True, exist_ok=True)
     if ids is None:
@@ -261,6 +297,12 @@ def write_sidecars(engine, results, out_dir: Path, llm=None, ids: list[str] | No
         "ambiguous_account_links": sum(1 for q in queue for x in q["ambiguous_links"] if x["kind"] == "account"),
         "ambiguous_identifier_free_ties": sum(1 for q in queue for x in q["ambiguous_links"] if x["kind"] == "identifier_free_tie"),
         "cases": queue})
+
+    from .evidence_cards import CardBuilder
+    cards = CardBuilder(engine).cards(results, all_ids)
+    _jsonl(out_dir / "findings_evidence.jsonl", cards)
+
+    _dump(out_dir / "ghosts.json", ghost_census(results, ids))
 
     _dump(out_dir / "lineage.json", {cid: lineage(engine, results[cid]) for cid in ids if results[cid].status == "INCOMPLETE"})
     _jsonl(out_dir / "conflicts.jsonl", conflicts(engine, results, ids))
@@ -305,4 +347,4 @@ def write_sidecars(engine, results, out_dir: Path, llm=None, ids: list[str] | No
                                   if i.kind in ("email", "user", "phone")) if c.user_id else [],
         })
     _dump(out_dir / "cases.json", bundle)
-    return {"trace_steps": len(trace), "review_queue": len(queue)}
+    return {"trace_steps": len(trace), "review_queue": len(queue), "finding_cards": len(cards)}
